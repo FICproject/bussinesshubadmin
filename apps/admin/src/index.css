@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* LIGHT THEME TOKENS */
+  :root {
+    --bg-primary: #F5F3FF;      /* Body BG: #F5F3FF */
+    --bg-sidebar: #FFFFFF;      /* Glowing Pure White Sidebar */
+    --bg-header: #1E1B4B;       /* Midnight Indigo Header */
+    --bg-card: #FFFFFF;
+    --bg-elevated: #F8F7FF;
+    --border-primary: #ECEAF5;
+    --accent-primary: #7047D7;
+    --accent-secondary: #0284C7;
+    --accent-tertiary: #0D9488;
+    --accent-highlight: #F5B942;
+    --text-primary: #172033;
+    --text-secondary: #576579;
+    --text-muted: #8E9BAE;
+    --status-success: #059669;
+    --status-warning: #D97706;
+    --status-danger: #E11D48;
+    --status-info: #0284C7;
+
+    --color-paper: var(--bg-primary);
+    --color-surface: var(--bg-card);
+    --color-ink: var(--text-primary);
+    --color-muted: var(--text-secondary);
+    --color-rule: var(--border-primary);
+    --color-accent: var(--accent-primary);
+  }
+
+  /* DARK THEME TOKENS */
+  .dark {
+    --bg-primary: #0F172A;
+    --bg-sidebar: #131B2E;
+    --bg-header: #17243A;       /* Preserves dark navy header across modes */
+    --bg-card: #1E293B;
+    --bg-elevated: #26354D;
+    --border-primary: #334155;
+    --accent-primary: #A78BFA;
+    --accent-secondary: #38BDF8;
+    --accent-tertiary: #2DD4BF;
+    --accent-highlight: #F5B942;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --status-success: #34D399;
+    --status-warning: #FBBF24;
+    --status-danger: #FB7185;
+    --status-info: #38BDF8;
+
+    --color-paper: var(--bg-primary);
+    --color-surface: var(--bg-card);
+    --color-ink: var(--text-primary);
+    --color-muted: var(--text-secondary);
+    --color-rule: var(--border-primary);
+    --color-accent: var(--accent-primary);
+  }
+
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    height: 100%;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+    overflow-x: hidden;
+  }
+}
+
+/* Ensure smooth ultra-wide monitor and high-resolution TV scaling */
+@media (min-width: 1920px) {
+  .admin-content-container {
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (min-width: 2560px) {
+  .admin-content-container {
+    max-width: 2200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Glassmorphism & Elevation utilities referencing semantic design tokens */
+.panel-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.07);
+}
+
+.table-row-inspo {
+  transition: background-color 0.15s ease;
+}
+.table-row-inspo:hover {
+  background-color: var(--bg-elevated);
+}
+
+/* Custom Sleek Scrollbar for Sidebar in Dark Theme */
+.dark aside nav::-webkit-scrollbar,
+.dark aside::-webkit-scrollbar,
+.dark .sidebar-custom-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark aside nav::-webkit-scrollbar-track,
+.dark aside::-webkit-scrollbar-track,
+.dark .sidebar-custom-scroll::-webkit-scrollbar-track {
+  background: #0A0F1D; /* Dark black track matching dark sidebar */
+}
+
+.dark aside nav::-webkit-scrollbar-thumb,
+.dark aside::-webkit-scrollbar-thumb,
+.dark .sidebar-custom-scroll::-webkit-scrollbar-thumb {
+  background: #1E293B; /* Deep dark slate thumb */
+  border-radius: 9999px;
+  border: 1px solid #0A0F1D;
+}
+
+.dark aside nav::-webkit-scrollbar-thumb:hover,
+.dark aside::-webkit-scrollbar-thumb:hover,
+.dark .sidebar-custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #334155; /* Slightly lighter on hover */
+}
+
+/* Firefox support for dark scrollbar */
+.dark aside nav,
+.dark aside,
+.dark .sidebar-custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #1E293B #0A0F1D;
+}
+
