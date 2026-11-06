@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { MeetingModel } from '../../database/Meeting';
 import { MemberModel } from '../../database/Member';
+import { AdminUserModel } from '../../database/AdminUser';
 import { FundingApplicationModel } from '../../database/FundingApplication';
 import { authenticateAdmin, AuthenticatedAdminRequest, logAdminAction } from '../../common/middleware/auth';
 
@@ -22,7 +23,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
       for (const fApp of fundingAppsWithMeetings) {
         const existing = await MeetingModel.findOne({ relatedFundingApplicationId: fApp._id });
         if (!existing) {
-          const sampleAdmin = await MemberModel.findOne();
+          const sampleAdmin = await AdminUserModel.findOne({ role: 'SUPER_ADMIN' });
           await MeetingModel.create({
             title: `FIC Funding Pitch: ${fApp.businessName}`,
             description: `Venture capital investment pitch with ${fApp.applicantName} (${fApp.applicantEmail}). Requested: ₹${fApp.requestedAmount?.toLocaleString('en-IN')}. Notes: ${fApp.diligenceNotes || ''}`,

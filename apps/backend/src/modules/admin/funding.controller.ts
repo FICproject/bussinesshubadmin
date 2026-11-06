@@ -9,40 +9,26 @@ import { MemberWalletModel, IMemberWallet } from '../../database/MemberWallet';
 
 const router = Router();
 
-// Helper to get or create member wallet filled with mock funds
+// Helper to get or create member wallet
 export const getOrCreateMemberWallet = async (
   memberId: mongoose.Types.ObjectId | string,
   memberEmail: string,
-  memberName?: string
+  _memberName?: string
 ): Promise<IMemberWallet> => {
   let wallet = await MemberWalletModel.findOne({
     $or: [{ memberId }, { memberEmail: memberEmail.toLowerCase() }],
   });
 
   if (!wallet) {
-    const initialFunds = 100000; // Mock wallet pre-filled with ₹1,00,000
     wallet = await MemberWalletModel.create({
       memberId: new mongoose.Types.ObjectId(memberId.toString()),
       memberEmail: memberEmail.toLowerCase(),
-      balance: initialFunds,
+      balance: 0,
       currency: 'INR',
       currencySymbol: '₹',
       status: 'ACTIVE',
       lastSyncedAt: new Date(),
-      transactions: [
-        {
-          id: `TXN-INIT-${Date.now()}`,
-          type: 'CREDIT',
-          title: 'Opening Wallet Balance & Test Capital',
-          category: 'Account Funding',
-          amount: initialFunds,
-          currency: 'INR',
-          status: 'SUCCESS',
-          reference: `INIT-CREDIT-${Math.floor(1000 + Math.random() * 9000)}`,
-          date: new Date(Date.now() - 86400000 * 3).toISOString(),
-          description: 'Pre-loaded wallet balance for investment and platform services',
-        },
-      ],
+      transactions: [],
     });
   }
 
@@ -52,190 +38,10 @@ export const getOrCreateMemberWallet = async (
 // In-memory runtime store fallback to guarantee newly created pools ALWAYS display immediately
 let memoryPools: any[] = [];
 
-// Seed sample startup funding applications & default investment pools if empty
-const ensureSeedFunding = async () => {
-  try {
-    const poolCount = await InvestmentPoolModel.countDocuments();
-    if (poolCount === 0 && memoryPools.length === 0) {
-      const members = await MemberModel.find().limit(3);
-      const mem1 = members[0];
-      const mem2 = members[1];
-
-      const defaultPools = [
-        {
-          poolCode: 'POOL-AGRI-2026',
-          title: 'AgriTech Cold-Chain Infrastructure Pool',
-          description: 'Community crowdfunded capital pool backing cold-chain storage and IoT sensor distribution hubs across Tamil Nadu & Karnataka.',
-          industryCategory: 'Agri-Tech / Supply Chain',
-          targetAmount: 1500000,
-          collectedAmount: 950000,
-          minInvestmentPerUser: 10000,
-          maxInvestmentPerUser: 500000,
-          investorAnnualYieldPercent: 10.5,
-          tenureMonths: 18,
-          status: 'OPEN',
-          borrowerName: 'Vikramaditya Rao',
-          borrowerBusinessName: 'AgriTech Next Innovations',
-          borrowerInterestRateAnnual: 13.5,
-          ficMarginPercent: 3.0,
-          investors: mem1 && mem2 ? [
-            {
-              memberId: mem1._id,
-              memberName: mem1.name,
-              memberEmail: mem1.email,
-              memberPhone: mem1.phone,
-              investedAmount: 500000,
-              investedAt: new Date(Date.now() - 86400000 * 5),
-              expectedInterest: Math.round((500000 * 10.5 * 1.5) / 100),
-              totalMaturityAmount: 500000 + Math.round((500000 * 10.5 * 1.5) / 100),
-              payoutStatus: 'PENDING',
-            },
-            {
-              memberId: mem2._id,
-              memberName: mem2.name,
-              memberEmail: mem2.email,
-              memberPhone: mem2.phone,
-              investedAmount: 450000,
-              investedAt: new Date(Date.now() - 86400000 * 2),
-              expectedInterest: Math.round((450000 * 10.5 * 1.5) / 100),
-              totalMaturityAmount: 450000 + Math.round((450000 * 10.5 * 1.5) / 100),
-              payoutStatus: 'PENDING',
-            },
-          ] : [],
-        },
-        {
-          poolCode: 'POOL-CLOUD-2026',
-          title: 'FinTech DevOps Cloud Microgrid Pool',
-          description: 'Capital pool powering enterprise failover systems and multi-tenant data architecture for mid-market payment aggregators.',
-          industryCategory: 'IT & Cloud Infrastructure',
-          targetAmount: 1200000,
-          collectedAmount: 1200000,
-          minInvestmentPerUser: 25000,
-          maxInvestmentPerUser: 600000,
-          investorAnnualYieldPercent: 11,
-          tenureMonths: 12,
-          status: 'DISBURSED',
-          borrowerName: 'Karthik Balakrishnan',
-          borrowerBusinessName: 'CloudHyper DevOps Hub',
-          borrowerInterestRateAnnual: 14,
-          ficMarginPercent: 3.0,
-          disbursedToBorrowerAt: new Date(Date.now() - 86400000 * 45),
-          investors: mem1 ? [
-            {
-              memberId: mem1._id,
-              memberName: mem1.name,
-              memberEmail: mem1.email,
-              memberPhone: mem1.phone,
-              investedAmount: 1200000,
-              investedAt: new Date(Date.now() - 86400000 * 60),
-              expectedInterest: Math.round((1200000 * 11 * 1.0) / 100),
-              totalMaturityAmount: 1200000 + Math.round((1200000 * 11 * 1.0) / 100),
-              payoutStatus: 'DISBURSED',
-            },
-          ] : [],
-        },
-      ];
-
-      await InvestmentPoolModel.create(defaultPools);
-    }
-  } catch (pErr) {
-    console.warn('InvestmentPool seed warning:', pErr);
-  }
-
-  const count = await FundingApplicationModel.countDocuments();
-  if (count === 0) {
-    const apps = await FundingApplicationModel.create([
-      {
-        applicantName: 'Vikramaditya Rao',
-        applicantEmail: 'vikram@agritechnext.in',
-        applicantPhone: '+91 98450 11223',
-        businessName: 'AgriTech Next Innovations',
-        industryCategory: 'Agri-Tech / Supply Chain',
-        businessPitch: 'AI-powered cold storage monitoring and direct farm-to-retail distribution hubs in South India.',
-        requestedAmount: 1500000,
-        stage: 'USER_REQUEST',
-        interestRateAnnual: 12,
-        tenureMonths: 24,
-      },
-      {
-        applicantName: 'Pooja Sundaram',
-        applicantEmail: 'pooja@ecopackage.org',
-        applicantPhone: '+91 97412 88765',
-        businessName: 'EcoWrap Sustainable Packaging',
-        industryCategory: 'Manufacturing & Materials',
-        businessPitch: 'Biodegradable bagasse and seaweed-based alternative packaging for e-commerce brands.',
-        requestedAmount: 800000,
-        approvedPrincipal: 800000,
-        interestRateAnnual: 10.5,
-        tenureMonths: 18,
-        stage: 'REVIEW',
-        meetingScheduledAt: new Date(Date.now() + 86400000 * 2), // in 2 days
-        meetingLink: 'https://meet.google.com/fic-pitch-821',
-        diligenceNotes: 'Strong unit economics. Pitch meeting set to finalize valuation and collateral terms.',
-      },
-      {
-        applicantName: 'Karthik Balakrishnan',
-        applicantEmail: 'karthik@cloudhyper.dev',
-        applicantPhone: '+91 91234 56789',
-        businessName: 'CloudHyper DevOps Hub',
-        industryCategory: 'IT & Cloud Infrastructure',
-        businessPitch: 'Turnkey cloud observability & disaster recovery automation for mid-market fintechs.',
-        requestedAmount: 1200000,
-        approvedPrincipal: 1200000,
-        interestRateAnnual: 14,
-        tenureMonths: 12,
-        expectedTotalInterest: 168000,
-        repaidAmount: 400000,
-        accruedInterestCollected: 56000,
-        stage: 'FUNDED',
-        disbursementDate: new Date(Date.now() - 86400000 * 45),
-        disbursementReference: 'FIC-FUND-902188',
-        reviewedBy: 'Dinesh K (Super Admin)',
-        diligenceNotes: 'Approved. Disbursed via RTGS. Healthy 3-month recurring revenues.',
-      },
-    ]);
-
-    // Also sync the meeting to the Meetings collection so Customer Meetings Desk displays it
-    try {
-      const reviewApp = apps.find((a) => a.stage === 'REVIEW');
-      if (reviewApp && reviewApp.meetingScheduledAt) {
-        const existingMeeting = await MeetingModel.findOne({ relatedFundingApplicationId: reviewApp._id });
-        if (!existingMeeting) {
-          const sampleAdmin = await MemberModel.findOne(); // or dummy admin
-          await MeetingModel.create({
-            title: `FIC Funding Pitch: ${reviewApp.businessName}`,
-            description: `Venture capital investment pitch with ${reviewApp.applicantName} (${reviewApp.applicantEmail}). Requested: ₹${reviewApp.requestedAmount?.toLocaleString('en-IN')}`,
-            hostAdminId: sampleAdmin?._id || new mongoose.Types.ObjectId(),
-            participantMemberIds: [],
-            externalParticipants: [
-              {
-                name: reviewApp.applicantName,
-                email: reviewApp.applicantEmail,
-                phone: reviewApp.applicantPhone,
-                roleOrCompany: reviewApp.businessName,
-              },
-            ],
-            meetingType: 'FUNDING_PITCH',
-            relatedFundingApplicationId: reviewApp._id,
-            scheduledAt: reviewApp.meetingScheduledAt,
-            durationMinutes: 45,
-            meetingLink: reviewApp.meetingLink,
-            status: 'SCHEDULED',
-            notificationSent: true,
-          });
-        }
-      }
-    } catch (mErr) {
-      console.warn('Seed funding meeting sync warning:', mErr);
-    }
-  }
-};
-
 // GET /api/admin/funding/summary
 // Exclusive to SUPER_ADMIN
 router.get('/summary', authenticateAdmin, requireRole('SUPER_ADMIN'), async (_req: AuthenticatedAdminRequest, res: Response) => {
   try {
-    await ensureSeedFunding();
     const applications = await FundingApplicationModel.find().sort({ createdAt: -1 });
 
     // Workflow counts
@@ -464,28 +270,9 @@ router.patch('/:id/repayment', authenticateAdmin, requireRole('SUPER_ADMIN'), as
       });
     }
 
-    // If still not found, check if it's a known seeded record or create a fallback record so operations succeed
     if (!app) {
-      const fallbackName = businessName || 'CloudHyper DevOps Hub';
-      const fallbackEmail = applicantEmail || 'karthik@cloudhyper.dev';
-      app = await FundingApplicationModel.create({
-        applicantName: 'Karthik Balakrishnan',
-        applicantEmail: fallbackEmail,
-        applicantPhone: '+91 91234 56789',
-        businessName: fallbackName,
-        industryCategory: 'IT & Cloud Infrastructure',
-        businessPitch: 'Turnkey cloud observability & disaster recovery automation for mid-market fintechs.',
-        requestedAmount: 1200000,
-        approvedPrincipal: 1200000,
-        interestRateAnnual: 14,
-        tenureMonths: 12,
-        expectedTotalInterest: 168000,
-        stage: 'FUNDED',
-        disbursementDate: new Date(),
-        disbursementReference: 'FIC-FUND-AUTO',
-        repaidAmount: 0,
-        accruedInterestCollected: 0,
-      });
+      res.status(404).json({ success: false, error: 'Application not found' });
+      return;
     }
 
     if (principalRepaid) app.repaidAmount = (app.repaidAmount || 0) + Number(principalRepaid);
@@ -549,7 +336,6 @@ router.patch('/:id/reject', authenticateAdmin, requireRole('SUPER_ADMIN'), async
 // GET /api/admin/funding/pools - List all collection pools with metrics
 router.get('/pools', authenticateAdmin, requireRole('SUPER_ADMIN'), async (_req: AuthenticatedAdminRequest, res: Response) => {
   try {
-    await ensureSeedFunding();
     const dbPools = await InvestmentPoolModel.find().sort({ createdAt: -1 });
 
     const combinedMap = new Map<string, any>();
@@ -742,21 +528,8 @@ router.post('/pools/:id/invest', authenticateAdmin, requireRole('SUPER_ADMIN'), 
     }
 
     if (!member) {
-      // Auto-create a fallback active test member if database has zero members
-      const fallbackCat = new mongoose.Types.ObjectId();
-      member = await MemberModel.create({
-        name: 'Ananya Roy (Senior Fullstack Architect)',
-        email: 'ananya.dev@example.com',
-        phone: '+91 91234 56789',
-        primaryCategory: fallbackCat,
-        primaryCategoryName: 'IT & Cloud Infrastructure',
-        subcategories: ['Web & Mobile App Development'],
-        status: 'ACTIVE',
-        membershipPlan: 'FIRST_YEAR_INTRO',
-        membershipFeePaid: 99,
-        paymentStatus: 'PAID',
-        kycStatus: 'APPROVED',
-      });
+      res.status(404).json({ success: false, error: 'Member not found. Please select a valid member.' });
+      return;
     }
 
     const amount = Number(investedAmount);

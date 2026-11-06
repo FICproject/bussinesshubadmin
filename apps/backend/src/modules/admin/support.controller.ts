@@ -18,38 +18,6 @@ router.get('/tickets', authenticateAdmin, async (req, res) => {
       .populate('memberId', 'name email phone primaryCategoryName')
       .sort({ updatedAt: -1 });
 
-    // Seed mock tickets if empty
-    if (tickets.length === 0) {
-      const member = await MemberModel.findOne();
-      if (member) {
-        await SupportTicketModel.create({
-          ticketNumber: 'TIC-2026-001',
-          memberId: member._id,
-          subject: 'Delay in KYC approval status update',
-          category: 'KYC_QUERY',
-          priority: 'HIGH',
-          status: 'IN_PROGRESS',
-          messages: [
-            {
-              sender: 'MEMBER',
-              senderId: member._id,
-              message: 'I uploaded my Udyam certificate 2 days ago, but it still shows under review.',
-              timestamp: new Date(Date.now() - 3600000 * 4),
-            },
-            {
-              sender: 'ADMIN',
-              message: 'Hello Rajesh, our verification executive is reviewing your application today.',
-              timestamp: new Date(Date.now() - 3600000 * 2),
-            },
-          ],
-        });
-
-        tickets = await SupportTicketModel.find(filter)
-          .populate('memberId', 'name email phone primaryCategoryName')
-          .sort({ updatedAt: -1 });
-      }
-    }
-
     res.json({ success: true, data: tickets });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

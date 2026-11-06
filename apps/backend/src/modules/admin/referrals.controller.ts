@@ -5,7 +5,7 @@ import { MemberModel } from '../../database/Member';
 
 const router = Router();
 
-// Ensure initial config & sample referrals exist if empty
+// Ensure initial configuration exists if empty
 const ensureReferralInit = async () => {
   let config = await ReferralConfigModel.findOne({ key: 'DEFAULT_CONFIG' });
   if (!config) {
@@ -17,28 +17,6 @@ const ensureReferralInit = async () => {
       isActive: true,
       updatedBy: 'System',
     });
-  }
-
-  const recordCount = await ReferralRecordModel.countDocuments();
-  if (recordCount === 0) {
-    const members = await MemberModel.find().limit(3);
-    if (members.length >= 2) {
-      await ReferralRecordModel.create([
-        {
-          referrerMemberId: members[0]._id,
-          referrerName: members[0].name,
-          referrerEmail: members[0].email,
-          referredMemberId: members[1]._id,
-          referredName: members[1].name,
-          referredEmail: members[1].email,
-          bonusAmount: config.bonusPerReferral,
-          status: 'PAID',
-          payoutDate: new Date(),
-          payoutReference: 'REF-TXN-88231',
-          notes: 'Standard onboarding referral bonus paid via UPI',
-        },
-      ]);
-    }
   }
   return config;
 };

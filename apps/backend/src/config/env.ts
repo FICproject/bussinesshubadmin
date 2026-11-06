@@ -28,12 +28,10 @@ export const config = {
     ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()) 
     : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3001'],
 
-  // Initial Seeder Accounts
+  // Initial Super Admin Seed Credentials
   seed: {
     superAdminEmail: process.env.SEED_SUPER_ADMIN_EMAIL || 'superadmin@ficapp.in',
     superAdminPassword: process.env.SEED_SUPER_ADMIN_PASSWORD || 'admin123',
-    adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@ficapp.in',
-    adminPassword: process.env.SEED_ADMIN_PASSWORD || 'admin123',
   },
 
   // Storage / Persistence configuration

@@ -16,38 +16,6 @@ router.get('/', authenticateAdmin, async (req, res) => {
       .populate('memberId', 'name email phone primaryCategoryName')
       .sort({ createdAt: -1 });
 
-    // Seed realistic mock payment records if currently empty
-    if (payments.length === 0) {
-      const members = await MemberModel.find().limit(5);
-      if (members.length > 0) {
-        const mockSeeds = [
-          {
-            memberId: members[0]._id,
-            amount: 99,
-            currency: 'INR',
-            paymentType: 'INTRO_FEE',
-            status: 'SUCCESS',
-            gatewayProvider: 'RAZORPAY',
-            gatewayTransactionId: 'pay_rzp_99intro_001',
-            invoiceUrl: 'https://placehold.co/600x800/png?text=Invoice+FIC-INV-2026-001',
-          },
-          {
-            memberId: members[members.length - 1]._id,
-            amount: 5999,
-            currency: 'INR',
-            paymentType: 'ANNUAL_RENEWAL',
-            status: 'PENDING',
-            gatewayProvider: 'BANK_TRANSFER',
-            gatewayTransactionId: 'neft_fic_annual_992',
-          },
-        ];
-        await PaymentModel.insertMany(mockSeeds);
-        payments = await PaymentModel.find(filter)
-          .populate('memberId', 'name email phone primaryCategoryName')
-          .sort({ createdAt: -1 });
-      }
-    }
-
     if (search && typeof search === 'string') {
       const q = search.toLowerCase();
       payments = payments.filter((p: any) => {

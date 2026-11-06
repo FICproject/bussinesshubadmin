@@ -91,81 +91,18 @@ router.get('/:id', authenticateAdmin, async (req: AuthenticatedAdminRequest, res
     // Member Bank Details (provided by user for settlement/payouts)
     const bankDetails = {
       accountHolderName: member.name,
-      bankName: member.name.includes('Rajesh')
-        ? 'State Bank of India'
-        : member.name.includes('Ananya')
-        ? 'HDFC Bank Ltd'
-        : 'ICICI Bank Ltd',
-      accountNumber: member.name.includes('Rajesh')
-        ? '987654321098'
-        : member.name.includes('Ananya')
-        ? '50100234567891'
-        : '001205008912',
-      ifscCode: member.name.includes('Rajesh')
-        ? 'SBIN0004521'
-        : member.name.includes('Ananya')
-        ? 'HDFC0001234'
-        : 'ICIC0000012',
-      accountType: member.name.includes('Rajesh') ? 'Current Account' : 'Savings Account',
-      branchName: member.name.includes('Rajesh')
-        ? 'Surat Industrial Estate'
-        : member.name.includes('Ananya')
-        ? 'Koramangala, Bangalore'
-        : 'T Nagar, Chennai',
-      upiId: `${member.email.split('@')[0]}@okaxis`,
-      verificationStatus: 'VERIFIED',
+      bankName: 'Primary Bank Account',
+      accountNumber: 'Pending Submission',
+      ifscCode: 'Pending Submission',
+      accountType: 'Savings Account',
+      branchName: 'Main Branch',
+      upiId: `${member.email.split('@')[0]}@upi`,
+      verificationStatus: member.kycStatus === 'APPROVED' ? 'VERIFIED' : 'PENDING',
       verifiedAt: member.registeredAt || new Date(),
     };
 
     // Fetch or create persistent wallet model for member
     let walletDoc = await getOrCreateMemberWallet(member._id, member.email, member.name);
-
-    // Realistic default transactions if empty
-    const isAnanya = member.name.includes('Ananya');
-    const isKavitha = member.name.includes('Kavitha');
-
-    const defaultTransactions = [
-      {
-        id: 'TXN-90211',
-        type: 'CREDIT',
-        title: 'Client Service Milestone Payout',
-        category: 'Marketplace Earnings',
-        amount: isAnanya ? 25000 : isKavitha ? 45000 : 15000,
-        currency: 'INR',
-        status: 'SUCCESS',
-        reference: 'ESCROW-REL-8821',
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-        description: 'Payment released from client milestone escrow',
-      },
-      {
-        id: 'TXN-90212',
-        type: 'CREDIT',
-        title: 'FIC Referral Ambassador Reward',
-        category: 'Referral Bonus',
-        amount: 1500,
-        currency: 'INR',
-        status: 'SUCCESS',
-        reference: 'REF-PAY-9041',
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-        description: 'Referral bonus credited for verified onboarding',
-      },
-      {
-        id: 'TXN-90213',
-        type: 'DEBIT',
-        title: 'Settlement Payout to Primary Bank',
-        category: 'Bank Withdrawal',
-        amount: isAnanya ? 10000 : isKavitha ? 20000 : 5000,
-        currency: 'INR',
-        status: 'SUCCESS',
-        reference: `NEFT-WDR-${bankDetails.ifscCode}-01`,
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8).toISOString(),
-        description: `Automated withdrawal to ${bankDetails.bankName} (${bankDetails.accountNumber.slice(-4)})`,
-      },
-    ];
-
-    const walletTransactions = walletDoc.transactions && walletDoc.transactions.length > 0
-      ? walletDoc.transactions
-      : defaultTransactions;
 
     const wallet = {
       balance: walletDoc.balance,
@@ -174,7 +111,7 @@ router.get('/:id', authenticateAdmin, async (req: AuthenticatedAdminRequest, res
       status: walletDoc.status || 'ACTIVE',
       lastSyncedAt: walletDoc.lastSyncedAt || new Date().toISOString(),
       note: 'Wallet balance and transaction ledger synchronized with collection pool activities',
-      transactions: walletTransactions,
+      transactions: walletDoc.transactions || [],
     };
 
     res.json({

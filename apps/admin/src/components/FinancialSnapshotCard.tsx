@@ -38,7 +38,7 @@ export const FinancialSnapshotCard: React.FC<FinancialSnapshotProps> = ({ data }
           </div>
         </div>
         <p className="text-3xl font-extrabold tracking-tight mt-3 text-indigo-950 dark:text-indigo-100">
-          ₹{(data?.totalRevenue ?? 65980).toLocaleString('en-IN')}
+          ₹{(data?.totalRevenue ?? 0).toLocaleString('en-IN')}
         </p>
         <div className="flex items-center justify-between mt-2.5">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-100/60 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-300/40 dark:border-indigo-700/40 w-fit">
@@ -73,12 +73,12 @@ export const FinancialSnapshotCard: React.FC<FinancialSnapshotProps> = ({ data }
           </div>
         </div>
         <p className="text-3xl font-extrabold text-emerald-950 dark:text-emerald-100 tracking-tight mt-3">
-          ₹{(data?.mrr ?? 12400).toLocaleString('en-IN')}
+          ₹{(data?.mrr ?? 0).toLocaleString('en-IN')}
         </p>
         <div className="flex items-center justify-between mt-2.5">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-100/60 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-300/40 dark:border-emerald-700/40 w-fit">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            +18.4% from last billing cycle
+            Real-time monthly revenue
           </span>
           <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity">
             Details &rarr;
@@ -108,12 +108,12 @@ export const FinancialSnapshotCard: React.FC<FinancialSnapshotProps> = ({ data }
           </div>
         </div>
         <p className="text-3xl font-extrabold text-amber-950 dark:text-amber-100 tracking-tight mt-3">
-          ₹{(data?.pendingAmount ?? 297).toLocaleString('en-IN')}
+          ₹{(data?.pendingAmount ?? 0).toLocaleString('en-IN')}
         </p>
         <div className="flex items-center justify-between mt-2.5">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-100/60 dark:bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-300/40 dark:border-amber-700/40 w-fit">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            {data?.pendingPaymentsCount ?? 3} members pending renewal
+            {data?.pendingPaymentsCount ?? 0} members pending renewal
           </span>
           <span className="text-[10px] font-mono text-amber-700 dark:text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity">
             Review dues &rarr;

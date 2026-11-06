@@ -13,7 +13,7 @@ const router = Router();
 // GET /api/admin/dashboard/stats
 router.get('/stats', authenticateAdmin, async (_req, res) => {
   try {
-    let [totalMembers, activeMembers, pendingKyc, pendingServices, activeServices, pendingRequests, recentLogs] =
+    const [totalMembers, activeMembers, pendingKyc, pendingServices, activeServices, pendingRequests, recentLogs] =
       await Promise.all([
         MemberModel.countDocuments(),
         MemberModel.countDocuments({ status: 'ACTIVE' }),
@@ -24,53 +24,15 @@ router.get('/stats', authenticateAdmin, async (_req, res) => {
         AuditLogModel.find().sort({ timestamp: -1 }).limit(10),
       ]);
 
-    // If recentLogs are empty, seed baseline activity stream so audit board is populated
-    if (recentLogs.length === 0) {
-      const admin = await MemberModel.findOne();
-      const logs = await AuditLogModel.create([
-        {
-          adminId: new mongoose.Types.ObjectId(),
-          adminName: 'FIC Super Administrator',
-          adminRole: 'SUPER_ADMIN',
-          action: 'VERIFY_KYC',
-          entityType: 'Member',
-          entityId: admin?._id?.toString() || '6ae96752178b82955793642e',
-          details: { message: 'Approved fullstack architect onboarding' },
-          timestamp: new Date(Date.now() - 1000 * 60 * 12),
-        },
-        {
-          adminId: new mongoose.Types.ObjectId(),
-          adminName: 'FIC Operations Admin',
-          adminRole: 'ADMIN',
-          action: 'MODERATE_SERVICE',
-          entityType: 'ServiceListing',
-          entityId: '6ae96752178b829557936440',
-          details: { message: 'Compliance verified for cloud deployment' },
-          timestamp: new Date(Date.now() - 1000 * 60 * 35),
-        },
-        {
-          adminId: new mongoose.Types.ObjectId(),
-          adminName: 'FIC Super Administrator',
-          adminRole: 'SUPER_ADMIN',
-          action: 'APPROVE_PAYMENT',
-          entityType: 'Payment',
-          entityId: 'pay_fic_intro_9921',
-          details: { message: 'Intro membership fee verified' },
-          timestamp: new Date(Date.now() - 1000 * 60 * 68),
-        },
-      ]);
-      recentLogs = logs;
-    }
-
     res.json({
       success: true,
       data: {
-        totalMembers: Math.max(totalMembers, 2),
-        activeMembers: Math.max(activeMembers, 1),
-        pendingKyc: Math.max(pendingKyc, 1),
-        pendingServices: Math.max(pendingServices, 1),
+        totalMembers,
+        activeMembers,
+        pendingKyc,
+        pendingServices,
         activeServices,
-        pendingRequests: Math.max(pendingRequests, 1),
+        pendingRequests,
         recentLogs,
       },
     });
@@ -88,22 +50,22 @@ router.get('/financial-stats', authenticateAdmin, async (_req, res) => {
     let totalRevenue = successfulPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
     const pendingAmount = pendingPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
 
-    // If zero revenue from payments, also aggregate from members fee collection
+    // If zero revenue from payments, check if any paid members exist
     if (totalRevenue === 0) {
       const members = await MemberModel.find({ paymentStatus: 'PAID' });
-      totalRevenue = members.reduce((acc, m) => acc + (m.membershipFeePaid || 99), 0);
+      totalRevenue = members.reduce((acc, m) => acc + (m.membershipFeePaid || 0), 0);
     }
 
-    // Monthly recurring estimate (intro fee renewals + annual memberships amortized)
-    const mrr = Math.round(totalRevenue * 0.22) + 12400;
+    // Monthly recurring (based strictly on real recorded payments)
+    const mrr = totalRevenue > 0 ? Math.round(totalRevenue * 0.22) : 0;
 
     res.json({
       success: true,
       data: {
         totalRevenue,
         mrr,
-        pendingPaymentsCount: pendingPayments.length || 1,
-        pendingAmount: pendingAmount || 297,
+        pendingPaymentsCount: pendingPayments.length,
+        pendingAmount,
       },
     });
   } catch (err: any) {
