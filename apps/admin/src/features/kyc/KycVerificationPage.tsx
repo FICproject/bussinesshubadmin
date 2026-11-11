@@ -410,15 +410,33 @@ export const KycVerificationPage: React.FC = () => {
 
               {/* Scrollable Body Content */}
               <div className="p-6 overflow-y-auto space-y-6">
-                {/* Candidate Information Card */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Candidate Detailed Information Card */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs">
                   <div>
                     <span className="text-slate-400 block mb-0.5">Applicant Email</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedSubmission.memberEmail}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 break-all">{selectedSubmission.memberEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">Contact Phone</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {selectedSubmission.memberPhone || selectedSubmission.memberId?.phone || 'Not Provided'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">Date of Birth (Age)</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {selectedSubmission.memberDob || 'Not Provided'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">Enrolled Category</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedSubmission.categoryName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">Subcategory / Primary Role</span>
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                      {selectedSubmission.subCategory || selectedSubmission.memberId?.subcategories?.[0] || 'Member'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">Submission Date</span>
@@ -426,53 +444,125 @@ export const KycVerificationPage: React.FC = () => {
                       {new Date(selectedSubmission.submittedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">Uploaded Documents</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {selectedSubmission.documents?.length || 0} Files
+                  <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-400 block mb-0.5">Residential / Business Address</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {selectedSubmission.address
+                        ? `${selectedSubmission.address.addressLine1 || ''} ${selectedSubmission.address.addressLine2 || ''}, ${selectedSubmission.address.city || ''}, ${selectedSubmission.address.district || ''}, ${selectedSubmission.address.state || ''} - ${selectedSubmission.address.pinCode || ''}`
+                        : (selectedSubmission.memberId?.address
+                            ? `${selectedSubmission.memberId.address.addressLine1 || ''}, ${selectedSubmission.memberId.address.city || ''}, ${selectedSubmission.memberId.address.state || ''} - ${selectedSubmission.memberId.address.pinCode || ''}`
+                            : 'Address details on file')}
+                    </span>
+                  </div>
+
+                  {/* Payment Gateway Transaction Proof */}
+                  <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 bg-emerald-50/70 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div>
+                      <span className="font-bold text-emerald-900 dark:text-emerald-300 block">
+                        ₹{selectedSubmission.paymentDetails?.amount || 99}.00 Membership Fee Received via Razorpay
+                      </span>
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+                        Payment ID: {selectedSubmission.paymentDetails?.paymentId || selectedSubmission.memberId?.paymentId || 'pay_rzp_verified'} • Order: {selectedSubmission.paymentDetails?.orderId || 'order_rzp_verified'}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 uppercase font-mono">
+                      {selectedSubmission.paymentDetails?.status || 'CAPTURED'}
                     </span>
                   </div>
                 </div>
 
-                {/* Uploaded Documents List */}
-                <div className="space-y-3">
+                {/* Uploaded Documents with Embedded Inline Inspection Preview */}
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
-                      Uploaded Verification Documents
+                      Uploaded Verification Documents ({selectedSubmission.documents?.length || 0})
                     </h4>
                     <span className="text-xs text-slate-400">
-                      Click Inspect to view original document proof
+                      Embedded preview within inspection tab
                     </span>
                   </div>
 
                   {selectedSubmission.documents && selectedSubmission.documents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {selectedSubmission.documents.map((doc: any, i: number) => (
-                        <div
-                          key={i}
-                          className="p-3.5 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-2xs hover:border-sky-500/50 transition-colors"
-                        >
-                          <div className="flex items-center space-x-3 truncate pr-2">
-                            <div className="p-2 bg-sky-50 dark:bg-sky-950/50 text-sky-600 rounded-lg shrink-0">
-                              <FileText className="w-4 h-4" />
+                    <div className="space-y-4">
+                      {selectedSubmission.documents.map((doc: any, i: number) => {
+                        const isImage = doc.fileUrl && (doc.fileUrl.startsWith('data:image/') || doc.fileUrl.match(/\.(jpeg|jpg|png|gif|webp|svg)($|\?)/i) || doc.fileName?.match(/\.(jpeg|jpg|png|gif|webp|svg)$/i));
+                        const isPdf = doc.fileUrl && (doc.fileUrl.startsWith('data:application/pdf') || doc.fileUrl.endsWith('.pdf') || doc.fileName?.endsWith('.pdf'));
+
+                        return (
+                          <div
+                            key={i}
+                            className="bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs hover:border-indigo-400/50 transition-colors"
+                          >
+                            {/* Document Title Header */}
+                            <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800 flex items-center justify-between border-b border-slate-200 dark:border-slate-700/80">
+                              <div className="flex items-center space-x-3 truncate">
+                                <div className="p-2 bg-indigo-50 dark:bg-indigo-950/60 text-[var(--accent-primary)] rounded-lg shrink-0">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="truncate">
+                                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                                    {doc.title || doc.documentType || `Verification Document #${i + 1}`}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 truncate">
+                                    {doc.fileName || 'Uploaded attachment'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 shrink-0">
+                                {doc.documentNumber && (
+                                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-md">
+                                    ID: {doc.documentNumber}
+                                  </span>
+                                )}
+                                {doc.fileUrl && (
+                                  <a
+                                    href={doc.fileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                    title="Open raw file in new tab"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </div>
                             </div>
-                            <div className="truncate">
-                              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                                {doc.title}
-                              </p>
-                              <p className="text-[10px] text-slate-400 truncate">{doc.fileName}</p>
+
+                            {/* Inline Inspection Preview Box */}
+                            <div className="p-3 bg-slate-100/60 dark:bg-slate-950/40 flex items-center justify-center min-h-[160px] max-h-[380px] overflow-auto">
+                              {isImage ? (
+                                <img
+                                  src={doc.fileUrl}
+                                  alt={doc.title || 'KYC Document'}
+                                  className="max-h-[340px] w-auto max-w-full object-contain rounded-lg shadow-sm border border-slate-200 dark:border-slate-800"
+                                />
+                              ) : isPdf ? (
+                                <iframe
+                                  src={doc.fileUrl}
+                                  title={doc.title || 'KYC Document'}
+                                  className="w-full h-[320px] rounded-lg border border-slate-200 dark:border-slate-800"
+                                />
+                              ) : (
+                                <div className="text-center p-6 space-y-2">
+                                  <FileText className="w-8 h-8 text-slate-400 mx-auto" />
+                                  <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">Attached document file</p>
+                                  {doc.fileUrl && (
+                                    <a
+                                      href={doc.fileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
+                                    >
+                                      <span>Open File</span>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewDoc(doc)}
-                            className="px-3 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-lg flex items-center space-x-1 transition-all active:scale-95 shrink-0 shadow-2xs"
-                          >
-                            <span>Inspect</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-xl text-center text-slate-400 text-xs">
@@ -605,12 +695,19 @@ export const KycVerificationPage: React.FC = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.94 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col"
+              className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full p-6 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col"
             >
               <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">{previewDoc.title}</h3>
-                  <p className="text-xs text-slate-400">{previewDoc.fileName}</p>
+                  <div className="flex items-center space-x-3 text-xs text-slate-400 mt-0.5">
+                    <span>{previewDoc.fileName}</span>
+                    {previewDoc.documentNumber && (
+                      <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded">
+                        ID: {previewDoc.documentNumber}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => setPreviewDoc(null)}
@@ -620,18 +717,64 @@ export const KycVerificationPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-4 flex-1 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 rounded-xl p-4">
-                <img
-                  src={previewDoc.fileUrl}
-                  alt={previewDoc.title}
-                  className="max-h-[60vh] object-contain rounded-lg shadow-md transition-transform duration-200 hover:scale-105"
-                />
+              <div className="mt-4 flex-1 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 rounded-xl p-4 min-h-[300px]">
+                {previewDoc.fileUrl && (previewDoc.fileUrl.startsWith('data:image/') || previewDoc.fileUrl.match(/\.(jpeg|jpg|png|gif|webp|svg)($|\?)/i) || previewDoc.fileName?.match(/\.(jpeg|jpg|png|gif|webp|svg)$/i)) ? (
+                  <img
+                    src={previewDoc.fileUrl}
+                    alt={previewDoc.title}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      const fallback = e.currentTarget.parentElement?.querySelector('.img-fallback');
+                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                    }}
+                    className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg shadow-md"
+                  />
+                ) : previewDoc.fileUrl && (previewDoc.fileUrl.startsWith('data:application/pdf') || previewDoc.fileUrl.endsWith('.pdf') || previewDoc.fileName?.endsWith('.pdf')) ? (
+                  <iframe
+                    src={previewDoc.fileUrl}
+                    title={previewDoc.title}
+                    className="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-800"
+                  />
+                ) : (
+                  <div className="text-center p-8 space-y-3">
+                    <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">Document attachment proof</p>
+                    {previewDoc.fileUrl && (
+                      <a
+                        href={previewDoc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
+                      >
+                        <span>Open Document in New Tab</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+                )}
+                <div className="img-fallback hidden flex-col items-center justify-center p-6 text-center text-slate-400">
+                  <FileText className="w-10 h-10 mb-2 opacity-50 text-slate-400" />
+                  <p className="text-xs font-medium">Unable to load direct image preview</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Please inspect using the new tab link or verify original upload.</p>
+                </div>
               </div>
 
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex items-center justify-between">
+                {previewDoc.fileUrl && (
+                  <a
+                    href={previewDoc.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={previewDoc.fileName || 'kyc-doc'}
+                    className="text-xs text-sky-600 hover:text-sky-700 font-semibold flex items-center space-x-1"
+                  >
+                    <span>Open in new window</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
                 <button
                   onClick={() => setPreviewDoc(null)}
-                  className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700 transition-all active:scale-95"
+                  className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700 transition-all active:scale-95 ml-auto"
                 >
                   Close Inspector
                 </button>

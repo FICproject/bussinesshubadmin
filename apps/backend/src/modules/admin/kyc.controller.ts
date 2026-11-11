@@ -83,6 +83,34 @@ router.patch('/:id/review', authenticateAdmin, async (req: AuthenticatedAdminReq
       await member.save();
     }
 
+    // Synchronize to users collection so customer portal user can immediately login and access portal
+    const isApproved = decision === 'APPROVED';
+    try {
+      const db = submission.db;
+      await db.collection('users').updateOne(
+        { $or: [{ _id: submission.memberId }, { email: submission.memberEmail?.toLowerCase() }] },
+        {
+          $set: {
+            isKycApproved: isApproved,
+            status: isApproved ? 'ACTIVE' : 'UNDER_REVIEW'
+          }
+        }
+      );
+
+      await db.collection('kycsubmissions').updateOne(
+        { $or: [{ userId: submission.memberId }, { userId: member?._id }] },
+        {
+          $set: {
+            status: isApproved ? 'APPROVED' : (decision === 'REJECTED' ? 'REJECTED' : 'RESUBMISSION_REQUESTED'),
+            rejectionReason: rejectionReason || undefined,
+            reviewedAt: new Date()
+          }
+        }
+      );
+    } catch (syncErr) {
+      console.warn('User portal access sync warning:', syncErr);
+    }
+
     await logAdminAction(req, `KYC_${decision}`, 'KycSubmission', id, {
       memberId: submission.memberId.toString(),
       decision,

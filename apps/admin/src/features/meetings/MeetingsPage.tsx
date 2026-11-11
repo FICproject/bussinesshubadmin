@@ -242,6 +242,7 @@ export const MeetingsPage: React.FC = () => {
             className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
             <option value="ALL">All Meetings</option>
+            <option value="PENDING_COORDINATION">Pending Coordination</option>
             <option value="SCHEDULED">Scheduled</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="COMPLETED">Completed</option>
@@ -392,6 +393,17 @@ export const MeetingsPage: React.FC = () => {
 
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end space-x-2">
+                          {m.status === 'PENDING_COORDINATION' && (
+                            <button
+                              onClick={() => handleStatusChange(m._id, 'SCHEDULED')}
+                              title="Confirm & Schedule Session"
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center space-x-1 shadow-2xs"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Confirm Slot</span>
+                            </button>
+                          )}
+
                           {m.status === 'SCHEDULED' && (
                             <button
                               onClick={() => handleStatusChange(m._id, 'IN_PROGRESS')}

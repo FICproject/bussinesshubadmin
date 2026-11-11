@@ -16,25 +16,34 @@ export const SupportTicketsPage: React.FC = () => {
   const [replyMessage, setReplyMessage] = useState('');
   const [updateStatus, setUpdateStatus] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
     loadTickets();
-  }, [statusFilter, priorityFilter]);
+    // Live update tickets queue and chat thread every 3 seconds
+    const interval = setInterval(() => {
+      loadTicketsSilently();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [statusFilter, priorityFilter, selectedTicket?._id]);
 
   const loadTickets = async () => {
     setLoading(true);
+    await loadTicketsSilently();
+    setLoading(false);
+  };
+
+  const loadTicketsSilently = async () => {
     try {
       let url = `/api/admin/support/tickets?status=${statusFilter}&priority=${priorityFilter}`;
       const data = await apiFetch(url);
       setTickets(data);
       if (selectedTicket) {
         const updated = data.find((t: any) => t._id === selectedTicket._id);
-        setSelectedTicket(updated || null);
+        if (updated) setSelectedTicket(updated);
       }
     } catch (err) {
       console.error('Failed to load support tickets', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -57,6 +66,32 @@ export const SupportTicketsPage: React.FC = () => {
       alert(`Reply failed: ${err.message}`);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleCompleteTicket = async (status: 'RESOLVED' | 'CLOSED' = 'RESOLVED') => {
+    if (!selectedTicket) return;
+    const confirmText = status === 'RESOLVED'
+      ? 'Are you sure you want to mark this member query as RESOLVED/COMPLETED?'
+      : 'Are you sure you want to CLOSE this ticket?';
+    if (!window.confirm(confirmText)) return;
+
+    setIsResolving(true);
+    try {
+      await apiFetch(`/api/admin/support/tickets/${selectedTicket._id}/resolve`, {
+        method: 'POST',
+        body: JSON.stringify({
+          status,
+          resolutionNote: replyMessage.trim() || undefined,
+        }),
+      });
+      setReplyMessage('');
+      setUpdateStatus(status);
+      await loadTicketsSilently();
+    } catch (err: any) {
+      alert(`Failed to complete ticket: ${err.message}`);
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -197,7 +232,7 @@ export const SupportTicketsPage: React.FC = () => {
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
           {selectedTicket ? (
             <div className="flex flex-col h-full space-y-4">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex justify-between items-start">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex justify-between items-start gap-3">
                 <div>
                   <div className="flex items-center space-x-2">
                     <span className="font-mono text-xs font-bold text-sky-600 dark:text-sky-400">
@@ -211,6 +246,26 @@ export const SupportTicketsPage: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     From: {selectedTicket.memberId?.name} ({selectedTicket.memberId?.email})
                   </p>
+                </div>
+
+                {/* Mark as Completed / Resolved Button */}
+                <div className="flex items-center space-x-2 shrink-0">
+                  {selectedTicket.status === 'RESOLVED' || selectedTicket.status === 'CLOSED' ? (
+                    <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Completed</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteTicket('RESOLVED')}
+                      disabled={isResolving}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white shadow-sm transition-all cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{isResolving ? 'Resolving...' : 'Complete Query'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -243,18 +298,32 @@ export const SupportTicketsPage: React.FC = () => {
 
               {/* Reply Box */}
               <form onSubmit={handleReplySubmit} className="pt-2 space-y-3">
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Ticket Status:</span>
-                  <select
-                    value={updateStatus}
-                    onChange={(e) => setUpdateStatus(e.target.value)}
-                    className="text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1"
-                  >
-                    <option value="OPEN">OPEN</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="CLOSED">CLOSED</option>
-                  </select>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Ticket Status:</span>
+                    <select
+                      value={updateStatus}
+                      onChange={(e) => setUpdateStatus(e.target.value)}
+                      className="text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1"
+                    >
+                      <option value="OPEN">OPEN</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="RESOLVED">RESOLVED</option>
+                      <option value="CLOSED">CLOSED</option>
+                    </select>
+                  </div>
+
+                  {selectedTicket.status !== 'RESOLVED' && selectedTicket.status !== 'CLOSED' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteTicket('RESOLVED')}
+                      disabled={isResolving}
+                      className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center space-x-1"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Resolve & Close Query</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="relative">

@@ -1,5 +1,19 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Plus, FolderTree, Check, X, Search, LayoutGrid, List } from 'lucide-react';
+import {
+  Plus,
+  FolderTree,
+  Check,
+  X,
+  Search,
+  LayoutGrid,
+  List,
+  Layers,
+  Trash2,
+  ChevronRight,
+  ShieldCheck,
+  Edit2,
+  FileText
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { containerVariants, itemVariants } from '../../utils/animations';
@@ -11,6 +25,11 @@ export const CategoriesPage: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Selected Category Drawer/Modal for Subcategory Management
+  const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
+  const [isSubmittingSub, setIsSubmittingSub] = useState(false);
 
   // New Category Form State
   const [name, setName] = useState('');
@@ -27,10 +46,49 @@ export const CategoriesPage: React.FC = () => {
     try {
       const data = await apiFetch('/api/admin/categories');
       setCategories(data);
+      // Keep selectedCategory in sync if open
+      if (selectedCategory) {
+        const refreshed = data.find((c: any) => c._id === selectedCategory._id);
+        if (refreshed) setSelectedCategory(refreshed);
+      }
     } catch (err) {
       console.error('Failed to load categories', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddSubcategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubcategoryName.trim() || !selectedCategory) return;
+    setIsSubmittingSub(true);
+    try {
+      await apiFetch(`/api/admin/categories/${selectedCategory._id}/subcategories`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newSubcategoryName.trim(),
+          slug: newSubcategoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        })
+      });
+      setNewSubcategoryName('');
+      await loadCategories();
+    } catch (err: any) {
+      alert(`Error adding subcategory: ${err.message}`);
+    } finally {
+      setIsSubmittingSub(false);
+    }
+  };
+
+  const handleDeleteSubcategory = async (subSlugOrId: string) => {
+    if (!selectedCategory) return;
+    if (!confirm('Are you sure you want to remove this subcategory?')) return;
+    try {
+      await apiFetch(`/api/admin/categories/${selectedCategory._id}/subcategories/${subSlugOrId}`, {
+        method: 'DELETE'
+      });
+      await loadCategories();
+    } catch (err: any) {
+      alert(`Error deleting subcategory: ${err.message}`);
     }
   };
 
@@ -205,7 +263,8 @@ export const CategoriesPage: React.FC = () => {
               key={cat._id}
               variants={itemVariants}
               whileHover={{ y: -2, transition: { duration: 0.15 } }}
-              className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between hover:shadow-md transition-shadow"
+              onClick={() => setSelectedCategory(cat)}
+              className="bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all cursor-pointer group relative"
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -213,11 +272,14 @@ export const CategoriesPage: React.FC = () => {
                     <span className="font-mono text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                       #{idx + 1}
                     </span>
-                    <div className="p-2 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-lg">
+                    <div className="p-2 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-lg group-hover:bg-sky-100 transition-colors">
                       <FolderTree className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">{cat.name}</h3>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors flex items-center gap-1.5">
+                        <span>{cat.name}</span>
+                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-sky-500" />
+                      </h3>
                       <span className="text-xs font-mono text-slate-400">/{cat.slug}</span>
                     </div>
                   </div>
@@ -232,24 +294,40 @@ export const CategoriesPage: React.FC = () => {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-3">
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-3 line-clamp-2">
                   {cat.description || 'No description provided.'}
                 </p>
 
                 {/* Subcategories preview */}
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5 font-mono">
-                    Subcategories ({cat.subcategories?.length || 0})
-                  </span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                      Subcategories ({cat.subcategories?.length || 0})
+                    </span>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold group-hover:underline">
+                      Click to manage & add &rarr;
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {cat.subcategories?.map((sub: any, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-xs border border-slate-200 dark:border-slate-700 font-medium"
-                      >
-                        {sub.name}
+                    {cat.subcategories && cat.subcategories.length > 0 ? (
+                      cat.subcategories.slice(0, 6).map((sub: any, sIdx: number) => (
+                        <span
+                          key={sIdx}
+                          className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-xs border border-slate-200 dark:border-slate-700 font-medium"
+                        >
+                          {sub.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 italic">
+                        No subcategories registered yet. Click card to add.
                       </span>
-                    ))}
+                    )}
+                    {cat.subcategories && cat.subcategories.length > 6 && (
+                      <span className="px-2 py-0.5 text-slate-400 text-xs font-mono">
+                        +{cat.subcategories.length - 6} more
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -283,19 +361,23 @@ export const CategoriesPage: React.FC = () => {
             <motion.div
               key={cat._id}
               variants={itemVariants}
-              className="p-5 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+              onClick={() => setSelectedCategory(cat)}
+              className="p-5 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex items-start space-x-3.5 flex-1">
                   <span className="font-mono text-xs font-bold text-slate-400 dark:text-slate-500 w-6 pt-2 shrink-0">
                     #{idx + 1}
                   </span>
-                  <div className="p-2.5 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-xl shrink-0 mt-0.5">
+                  <div className="p-2.5 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-xl shrink-0 mt-0.5 group-hover:bg-sky-100 transition-colors">
                     <FolderTree className="w-5 h-5" />
                   </div>
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center space-x-3 flex-wrap">
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">{cat.name}</h3>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors flex items-center gap-1.5">
+                        <span>{cat.name}</span>
+                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all text-sky-500" />
+                      </h3>
                       <span className="text-xs font-mono text-slate-400">/{cat.slug}</span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -316,18 +398,27 @@ export const CategoriesPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-4 lg:w-1/2 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
                   {/* Subcategories snippet */}
                   <div className="flex-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1 font-mono">
-                      Subcategories ({cat.subcategories?.length || 0})
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                        Subcategories ({cat.subcategories?.length || 0})
+                      </span>
+                      <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold group-hover:underline">
+                        Manage &rarr;
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-1">
-                      {cat.subcategories?.slice(0, 4).map((sub: any, idx: number) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] border border-slate-200 dark:border-slate-700 font-medium"
-                        >
-                          {sub.name}
-                        </span>
-                      ))}
+                      {cat.subcategories && cat.subcategories.length > 0 ? (
+                        cat.subcategories.slice(0, 4).map((sub: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] border border-slate-200 dark:border-slate-700 font-medium"
+                          >
+                            {sub.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-amber-600 italic">No subcategories</span>
+                      )}
                       {(cat.subcategories?.length || 0) > 4 && (
                         <span className="px-1.5 py-0.5 text-slate-400 text-[11px] font-mono">
                           +{(cat.subcategories?.length || 0) - 4} more
@@ -362,7 +453,7 @@ export const CategoriesPage: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Modal */}
+      {/* Modal for Creating New Category */}
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -477,6 +568,177 @@ export const CategoriesPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Interactive Modal / Drawer to View, Add, and Delete Subcategories */}
+      <AnimatePresence>
+        {selectedCategory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedCategory(null)}
+              className="fixed inset-0 bg-slate-950 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="relative z-50 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-500/20">
+                    <FolderTree className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
+                        {selectedCategory.name}
+                      </h3>
+                      <span className="font-mono text-xs text-slate-400 bg-slate-200/60 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        /{selectedCategory.slug}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Manage subcategories and roles eligible under this ecosystem sector.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                {/* Add Subcategory Form */}
+                <form
+                  onSubmit={handleAddSubcategory}
+                  className="bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 p-4 rounded-xl space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-900 dark:text-sky-200 uppercase tracking-wider flex items-center space-x-1.5">
+                      <Plus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                      <span>Add New Subcategory</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium">Instantly updates registration & portal</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={newSubcategoryName}
+                      onChange={(e) => setNewSubcategoryName(e.target.value)}
+                      placeholder="e.g. Organic Produce Aggregator, Diagnostic Lab, AI Specialist"
+                      className="flex-1 text-xs px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmittingSub || !newSubcategoryName.trim()}
+                      className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold tracking-wide transition-all active:scale-95 shadow-sm shrink-0 flex items-center space-x-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{isSubmittingSub ? 'Adding...' : 'Add Subcategory'}</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Subcategories List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
+                      Configured Subcategories ({selectedCategory.subcategories?.length || 0})
+                    </span>
+                    <span className="text-[11px] text-slate-400">Available to customers during onboarding</span>
+                  </div>
+
+                  {(!selectedCategory.subcategories || selectedCategory.subcategories.length === 0) ? (
+                    <div className="p-8 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
+                      No subcategories configured yet. Use the input above to add your first one.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {selectedCategory.subcategories.map((sub: any, idx: number) => {
+                        const subName = typeof sub === 'string' ? sub : sub.name;
+                        const subSlug = typeof sub === 'string' ? sub.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (sub.slug || sub._id);
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors group"
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                              <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div className="truncate">
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate block">
+                                  {subName}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-400 truncate block">
+                                  /{subSlug}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteSubcategory(subSlug)}
+                              title="Delete subcategory"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mandatory KYC Proofs under this Category */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono flex items-center space-x-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Mandatory KYC Compliance Proofs ({selectedCategory.kycRequirements?.length || 0})</span>
+                  </span>
+                  <div className="space-y-1.5">
+                    {selectedCategory.kycRequirements?.map((k: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="font-medium text-slate-800 dark:text-slate-200">{k.title}</span>
+                          <span className="text-[10px] font-mono text-slate-400">({k.docKey})</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${k.required ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : 'bg-slate-100 text-slate-600'}`}>
+                          {k.required ? 'MANDATORY' : 'OPTIONAL'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory(null)}
+                  className="px-5 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
+                >
+                  Done
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

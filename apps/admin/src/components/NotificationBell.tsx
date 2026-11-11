@@ -24,7 +24,7 @@ export const NotificationBell: React.FC = () => {
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 20000); // Poll every 20s
+    const interval = setInterval(loadNotifications, 4000); // Live poll every 4s for instant alerts
     return () => clearInterval(interval);
   }, []);
 

@@ -71,7 +71,13 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
     ? new Date(member.membershipExpiresAt)
     : member?.registeredAt
     ? new Date(new Date(member.registeredAt).setFullYear(new Date(member.registeredAt).getFullYear() + 1))
-    : null;
+    : new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+
+  const formatRegDate = (d: any) => {
+    if (!d) return 'Recently Active';
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? 'Active' : parsed.toLocaleDateString();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -99,9 +105,20 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
-                {loading ? 'Loading Member...' : member?.name}
-              </h3>
+              <div className="flex items-center space-x-2.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
+                  {loading ? 'Loading Member...' : member?.name}
+                </h3>
+                {wallet && (
+                  <button
+                    onClick={() => setActiveTab('WALLET')}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 transition-colors cursor-pointer"
+                  >
+                    <Wallet className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>₹{(wallet.balance ?? 0).toLocaleString('en-IN')}</span>
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {member?.primaryCategoryName || member?.primaryCategory?.name || 'FIC Ecosystem Member'}
               </p>
@@ -219,21 +236,38 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-                        <Mail className="w-4 h-4 text-slate-400" />
-                        <span>{member?.email}</span>
+                        <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="truncate">{member?.email || 'N/A'}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-                        <Phone className="w-4 h-4 text-slate-400" />
-                        <span>{member?.phone}</span>
+                        <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>{member?.phone || 'Not Provided'}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-                        <Layers className="w-4 h-4 text-slate-400" />
-                        <span>Category: {member?.primaryCategoryName}</span>
+                        <Layers className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>Category: {member?.primaryCategoryName || member?.primaryCategory?.name || 'General'}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-                        <Calendar className="w-4 h-4 text-slate-400" />
-                        <span>Registered: {new Date(member?.registeredAt).toLocaleDateString()}</span>
+                        <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>Registered: {formatRegDate(member?.registeredAt)}</span>
                       </div>
+                      {member?.dob && (
+                        <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                          <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>DOB: {member.dob}</span>
+                        </div>
+                      )}
+                      {member?.address && (
+                        <div className="sm:col-span-2 flex items-start space-x-2 text-slate-700 dark:text-slate-300 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <Building2 className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                          <span>
+                            Address:{' '}
+                            {typeof member.address === 'string'
+                              ? member.address
+                              : `${member.address.addressLine1 || ''} ${member.address.addressLine2 || ''}, ${member.address.city || ''}, ${member.address.state || ''} - ${member.address.pinCode || ''}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -255,6 +289,30 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                       </div>
                     </div>
                   )}
+
+                  {/* Wallet Overview Quick Access Card */}
+                  <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50/60 dark:from-slate-800 dark:to-amber-950/20 rounded-xl border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
+                        <Wallet className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wide block">
+                          Member Digital Wallet
+                        </span>
+                        <p className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+                          ₹{(wallet?.balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('WALLET')}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      View Wallet Ledger &rarr;
+                    </button>
+                  </div>
 
                   {/* KYC Compliance & Membership Validity Section */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -383,10 +441,16 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                     services.map((svc: any) => (
                       <div
                         key={svc._id}
-                        className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5"
+                        className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2"
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs">{svc.title}</h4>
+                          <div>
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs">{svc.title}</h4>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {svc.categoryName || svc.categoryId?.name || 'Business Sector'}
+                              {svc.subcategoryName ? ` • ${svc.subcategoryName}` : ''}
+                            </span>
+                          </div>
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               svc.status === 'APPROVED'
@@ -399,14 +463,27 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                             {svc.status}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
                           {svc.description}
                         </p>
-                        {svc.pricingEstimate && (
-                          <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                            Estimate: {svc.pricingEstimate}
+                        {svc.servicesOffered && svc.servicesOffered.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <span className="text-[10px] text-slate-400 font-medium">Offered Deliverables:</span>
+                            {svc.servicesOffered.map((deliv: string, idx: number) => (
+                              <span key={idx} className="px-2 py-0.5 bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-[10px] rounded border border-sky-200 dark:border-sky-800/50 font-medium">
+                                ✓ {deliv}
+                              </span>
+                            ))}
                           </div>
                         )}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-400">
+                          <span>Coverage: {svc.coverageArea || 'Pan India'} • Mode: {svc.deliveryMode || 'On-Site / Plant'}</span>
+                          {svc.pricingEstimate && (
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              Estimate: {svc.pricingEstimate}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
@@ -617,6 +694,33 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                         </p>
                       </div>
                     </div>
+
+                    {/* Membership Fee Direct Bank Payment Proof Box */}
+                    {bankDetails?.membershipPayment && (
+                      <div className="p-3.5 bg-sky-50 dark:bg-sky-950/40 rounded-xl border border-sky-200 dark:border-sky-800/60 flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="p-2 bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-300 rounded-lg shrink-0">
+                            <CreditCard className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-slate-100">
+                              Membership Fee Paid via Bank ({bankDetails.membershipPayment.paidFrom})
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-mono">
+                              Txn Ref: {bankDetails.membershipPayment.referenceId} • Paid on: {new Date(bankDetails.membershipPayment.paidAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 pl-2">
+                          <span className="font-extrabold text-xs text-sky-700 dark:text-sky-300 font-mono block">
+                            ₹{bankDetails.membershipPayment.amount}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                            {bankDetails.membershipPayment.status}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center space-x-2">
                       <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
