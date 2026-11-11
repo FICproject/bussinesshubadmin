@@ -70,7 +70,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm bg-slate-50/50 hover:bg-white transition-colors"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm text-slate-900 bg-slate-50/50 hover:bg-white transition-colors"
                   placeholder="admin@ficapp.in"
                 />
               </div>
@@ -89,7 +89,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-11 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm bg-slate-50/50 hover:bg-white transition-colors"
+                  className="block w-full pl-10 pr-11 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm text-slate-900 bg-slate-50/50 hover:bg-white transition-colors"
                   placeholder="••••••••"
                 />
                 <button
