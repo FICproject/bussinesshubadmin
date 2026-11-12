@@ -19,9 +19,13 @@ import {
   History,
   ChevronDown,
   Check,
+  Plus,
+  Lock,
+  RotateCcw,
+  ZoomIn,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch, downloadAdminOriginalDocument } from '../../services/api';
+import { apiFetch, downloadAdminOriginalDocument, getStoredAuth } from '../../services/api';
 import { AuthenticatedDocumentPreview } from '../../components/AuthenticatedDocumentPreview';
 import { containerVariants, itemVariants } from '../../utils/animations';
 import { SkeletonList, SkeletonCards } from '../../components/Skeleton';
@@ -45,6 +49,38 @@ export const KycVerificationPage: React.FC = () => {
   // Document modal preview state
   const [previewDoc, setPreviewDoc] = useState<any | null>(null);
   const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Record<string, boolean>>({});
+
+  // Current admin role (for Super Admin reverification exception)
+  const { user: currentAdminUser } = getStoredAuth();
+  const isSuperAdmin = String(currentAdminUser?.role || '').toUpperCase() === 'SUPER_ADMIN';
+
+  // Add Additional Document Request modal state
+  const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
+  const [addDocName, setAddDocName] = useState('');
+  const [addDocDescription, setAddDocDescription] = useState('');
+  const [addDocReason, setAddDocReason] = useState('');
+  const [addDocMandatory, setAddDocMandatory] = useState(true);
+  const [isAddingDoc, setIsAddingDoc] = useState(false);
+
+  // Review requested additional document state
+  const [reuploadAdditionalTarget, setReuploadAdditionalTarget] = useState<{ requestId: string; documentName: string } | null>(null);
+  const [additionalReviewReason, setAdditionalReviewReason] = useState('');
+  const [isReviewingAdditionalId, setIsReviewingAdditionalId] = useState<string | null>(null);
+
+  // Super Admin Reverification modal state
+  const [isReverifyModalOpen, setIsReverifyModalOpen] = useState(false);
+  const [reverifyReason, setReverifyReason] = useState('');
+  const [isReverifying, setIsReverifying] = useState(false);
+
+  const formatDocNumberDisplay = (rawNum?: string) => {
+    const val = String(rawNum || '').trim();
+    if (!val) return '';
+    const digitsOnly = val.replace(/[\s-]/g, '');
+    if (/^\d{12}$/.test(digitsOnly)) {
+      return `XXXX-XXXX-${digitsOnly.slice(-4)}`;
+    }
+    return val;
+  };
 
   const getDocIdentifier = (doc: any, idx?: number) =>
     String(doc?.docKey || doc?.documentId || (idx !== undefined ? idx : ''));
@@ -76,11 +112,17 @@ export const KycVerificationPage: React.FC = () => {
     loadSubmissions();
   }, [filterStatus]);
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (syncSelectedId?: string) => {
     setLoading(true);
     try {
       const data = await apiFetch(`/api/admin/kyc?status=${filterStatus}`);
       setSubmissions(data);
+      if (syncSelectedId && Array.isArray(data)) {
+        const refreshed = data.find((s: any) => s._id === syncSelectedId);
+        if (refreshed) {
+          setSelectedSubmission(refreshed);
+        }
+      }
     } catch (err) {
       console.error('Failed to load KYC list', err);
     } finally {
@@ -91,6 +133,11 @@ export const KycVerificationPage: React.FC = () => {
   const handleOpenDetails = (sub: any) => {
     setExpandedHistoryKeys({});
     setIsDocDropdownOpen(false);
+    setIsAddDocModalOpen(false);
+    setIsReverifyModalOpen(false);
+    setReuploadAdditionalTarget(null);
+    setReverifyReason('');
+    setAdditionalReviewReason('');
     setSelectedSubmission(sub);
     setDecision(sub.status === 'RESUBMISSION_REQUESTED' ? 'RESUBMISSION_REQUESTED' : 'APPROVED');
     const preselectedReupload = Array.isArray(sub.documents)
@@ -164,6 +211,110 @@ export const KycVerificationPage: React.FC = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAddDocumentRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSubmission) return;
+    if (addDocName.trim().length < 2) {
+      await showAlert('Please enter a valid Document Name (minimum 2 characters).', {
+        title: 'Document Name Required',
+        severity: 'warning',
+      });
+      return;
+    }
+    if (addDocReason.trim().length < 5) {
+      await showAlert('Please explain why this additional document is required (minimum 5 characters).', {
+        title: 'Reason Required',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    setIsAddingDoc(true);
+    try {
+      await apiFetch(`/api/admin/kyc/${selectedSubmission._id}/additional-documents`, {
+        method: 'POST',
+        body: JSON.stringify({
+          documentName: addDocName.trim(),
+          description: addDocDescription.trim(),
+          reason: addDocReason.trim(),
+          required: addDocMandatory,
+          allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        }),
+      });
+      setIsAddDocModalOpen(false);
+      setAddDocName('');
+      setAddDocDescription('');
+      setAddDocReason('');
+      setAddDocMandatory(true);
+      await loadSubmissions(selectedSubmission._id);
+    } catch (err: any) {
+      await showAlert(`Error requesting additional document: ${err.message}`, {
+        title: 'Add Document Failed',
+        severity: 'danger',
+      });
+    } finally {
+      setIsAddingDoc(false);
+    }
+  };
+
+  const handleReviewAdditionalRequest = async (
+    requestId: string,
+    status: 'APPROVED' | 'REUPLOAD_REQUIRED' | 'CANCELLED',
+    reasonText?: string
+  ) => {
+    if (!selectedSubmission) return;
+    setIsReviewingAdditionalId(requestId);
+    try {
+      await apiFetch(
+        `/api/admin/kyc/${selectedSubmission._id}/additional-documents/${encodeURIComponent(requestId)}/review`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ decision: status, ...(reasonText ? { reason: reasonText.trim() } : {}) }),
+        }
+      );
+      setReuploadAdditionalTarget(null);
+      setAdditionalReviewReason('');
+      await loadSubmissions(selectedSubmission._id);
+    } catch (err: any) {
+      await showAlert(`Error updating additional document: ${err.message}`, {
+        title: 'Document Review Failed',
+        severity: 'danger',
+      });
+    } finally {
+      setIsReviewingAdditionalId(null);
+    }
+  };
+
+  const handleSuperAdminReverify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSubmission || !isSuperAdmin) return;
+    if (reverifyReason.trim().length < 10) {
+      await showAlert('Please enter a detailed compliance audit reason (minimum 10 characters).', {
+        title: 'Audit Reason Required',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    setIsReverifying(true);
+    try {
+      await apiFetch(`/api/admin/kyc/${selectedSubmission._id}/reverify`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reverifyReason.trim() }),
+      });
+      setIsReverifyModalOpen(false);
+      setReverifyReason('');
+      await loadSubmissions(selectedSubmission._id);
+    } catch (err: any) {
+      await showAlert(`Reverification error: ${err.message}`, {
+        title: 'Reverification Failed',
+        severity: 'danger',
+      });
+    } finally {
+      setIsReverifying(false);
     }
   };
 
@@ -449,28 +600,34 @@ export const KycVerificationPage: React.FC = () => {
               className="fixed inset-0 bg-slate-950 backdrop-blur-sm"
             />
 
-            {/* Centralized Card Container */}
+            {/* Centralized Card Container (Sticky Header + Scrollable Body + Pinned Footer) */}
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
               transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-              className="relative z-50 w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="relative z-50 w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
             >
-              {/* Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-[var(--accent-primary)] border border-indigo-500/20 flex items-center justify-center font-bold shadow-2xs">
+              {/* Sticky Header */}
+              <div className="shrink-0 p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-[var(--accent-primary)] border border-indigo-500/20 flex items-center justify-center font-bold shadow-2xs shrink-0">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wider">
                         KYC Compliance Inspection
                       </span>
                       {getStatusBadge(selectedSubmission.status)}
+                      {(selectedSubmission.status === 'APPROVED' || selectedSubmission.isLocked) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>LOCKED</span>
+                        </span>
+                      )}
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug truncate">
                       {selectedSubmission.memberName}
                     </h3>
                   </div>
@@ -478,14 +635,14 @@ export const KycVerificationPage: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedSubmission(null)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Scrollable Body Content */}
-              <div className="p-6 overflow-y-auto space-y-6">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
                 {/* Candidate Detailed Information Card */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs">
                   <div>
@@ -587,8 +744,18 @@ export const KycVerificationPage: React.FC = () => {
                               <div className="flex items-center space-x-2 shrink-0">
                                 {doc.documentNumber && (
                                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-md">
-                                    ID: {doc.documentNumber}
+                                    ID: {formatDocNumberDisplay(doc.documentNumber)}
                                   </span>
+                                )}
+                                {doc.fileUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewDoc(doc)}
+                                    className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                    title="Zoom Preview"
+                                  >
+                                    <ZoomIn className="w-3.5 h-3.5" />
+                                  </button>
                                 )}
                                 {doc.documentId ? (
                                   <button
@@ -672,8 +839,8 @@ export const KycVerificationPage: React.FC = () => {
                                   {doc.versionHistory.map((hv: any, hIdx: number) => (
                                     <div key={hIdx} className="text-[11px] flex flex-wrap items-center justify-between gap-2 text-slate-600 dark:text-slate-300 border-t border-slate-200/70 dark:border-slate-800 pt-1">
                                       <span>
-                                        <strong>v{hv.version}</strong> ? {hv.fileName} ({hv.status})
-                                        {hv.reason ? ` ? Reason: ${hv.reason}` : ''}
+                                        <strong>v{hv.version}</strong> • {hv.fileName} ({hv.status})
+                                        {hv.reason ? ` • Reason: ${hv.reason}` : ''}
                                       </span>
                                       {hv.documentId && (
                                         <button
@@ -700,20 +867,223 @@ export const KycVerificationPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Compliance Decision Panel */}
-                <form onSubmit={handleDecisionSubmit} className="pt-5 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                {/* Additional Documents Requested Section */}
+                {Array.isArray(selectedSubmission.additionalDocumentRequests) &&
+                  selectedSubmission.additionalDocumentRequests.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
+                          Additional Documents Requested ({selectedSubmission.additionalDocumentRequests.length})
+                        </h4>
+                        <span className="text-[11px] text-slate-400">Admin Requested Proofs (Max 2 MB)</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {selectedSubmission.additionalDocumentRequests.map((reqItem: any) => {
+                          const reqStatus = String(reqItem.status || 'PENDING').toUpperCase();
+                          const isLockedSub = selectedSubmission.status === 'APPROVED' || selectedSubmission.isLocked;
+                          const isBusy = isReviewingAdditionalId === reqItem.requestId;
+                          const uploadedDocId = reqItem.fulfilledDocumentId || reqItem.uploadedDocumentId;
+                          const linkedDoc = (selectedSubmission.documents || []).find(
+                            (d: any) => (uploadedDocId && d.documentId === uploadedDocId) || (reqItem.docKey && d.docKey === reqItem.docKey)
+                          );
+                          const uploadedFileName = reqItem.uploadedFileName || linkedDoc?.fileName;
+                          const uploadedFileUrl = reqItem.uploadedFileUrl || linkedDoc?.fileUrl;
+                          return (
+                            <div
+                              key={reqItem.requestId}
+                              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 space-y-2.5 text-xs"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                                      {reqItem.documentName}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                                      {reqItem.required !== false ? 'Mandatory' : 'Optional'}
+                                    </span>
+                                  </div>
+                                  {reqItem.description && (
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                      <strong>Instructions:</strong> {reqItem.description}
+                                    </p>
+                                  )}
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    <strong>Reason:</strong> {reqItem.reason}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                    reqStatus === 'APPROVED'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : reqStatus === 'SUBMITTED'
+                                      ? 'bg-sky-100 text-sky-700'
+                                      : reqStatus === 'REUPLOAD_REQUIRED'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : reqStatus === 'CANCELLED'
+                                      ? 'bg-slate-200 text-slate-600'
+                                      : 'bg-orange-100 text-orange-700'
+                                  }`}
+                                >
+                                  {reqStatus.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+
+                              {uploadedDocId && (
+                                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                      {uploadedFileName || 'Uploaded Additional Document'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => downloadAdminOriginalDocument(uploadedDocId, uploadedFileName)}
+                                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-md hover:bg-indigo-100"
+                                    >
+                                      Download Original
+                                    </button>
+                                  </div>
+                                  <div className="p-2 bg-slate-100/60 dark:bg-slate-950/40 rounded-lg flex items-center justify-center max-h-60 overflow-auto">
+                                    <AuthenticatedDocumentPreview
+                                      documentId={uploadedDocId}
+                                      fileUrl={uploadedFileUrl}
+                                      fileName={uploadedFileName}
+                                      title={reqItem.documentName}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {!isLockedSub && reqStatus !== 'CANCELLED' && (
+                                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                                  {uploadedDocId && reqStatus !== 'APPROVED' && (
+                                    <button
+                                      type="button"
+                                      disabled={isBusy}
+                                      onClick={() => handleReviewAdditionalRequest(reqItem.requestId, 'APPROVED')}
+                                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                                    >
+                                      Approve Document
+                                    </button>
+                                  )}
+                                  {uploadedDocId && (
+                                    <button
+                                      type="button"
+                                      disabled={isBusy}
+                                      onClick={() => {
+                                        setReuploadAdditionalTarget({ requestId: reqItem.requestId, documentName: reqItem.documentName });
+                                        setAdditionalReviewReason('');
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                                    >
+                                      Request Reupload
+                                    </button>
+                                  )}
+                                  {reqStatus === 'PENDING' && (
+                                    <button
+                                      type="button"
+                                      disabled={isBusy}
+                                      onClick={() => handleReviewAdditionalRequest(reqItem.requestId, 'CANCELLED', 'No longer needed by compliance team')}
+                                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                                    >
+                                      Cancel Request
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Permanent KYC Approval Lock Banner & Super Admin Reverification Audit */}
+                {(selectedSubmission.status === 'APPROVED' || selectedSubmission.isLocked) && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-2.5 text-xs">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-bold text-emerald-900 dark:text-emerald-200">
+                            KYC Permanently Approved & Locked
+                          </div>
+                          <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+                            Approved by <strong>{selectedSubmission.approvedByName || 'Compliance Admin'}</strong>
+                            {selectedSubmission.approvedAt
+                              ? ` on ${new Date(selectedSubmission.approvedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+                              : ''}
+                            . Verification status is permanently locked against further edits.
+                          </p>
+                        </div>
+                      </div>
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReverifyReason('');
+                            setIsReverifyModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 border border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-50 shrink-0"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Initiate Super Admin Reverification</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(selectedSubmission.reverificationHistory) &&
+                  selectedSubmission.reverificationHistory.length > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 space-y-1.5 text-xs">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                        Super Admin Reverification Audit Trail
+                      </div>
+                      {selectedSubmission.reverificationHistory.map((rev: any, rIdx: number) => (
+                        <div key={rIdx} className="text-[11px] text-amber-900 dark:text-amber-200 border-t border-amber-200/60 dark:border-amber-800/40 pt-1">
+                          <strong>{rev.initiatedByName || 'Super Admin'}</strong> •{' '}
+                          {rev.initiatedAt ? new Date(rev.initiatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                          {' '}— {rev.reason}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+
+              {/* Pinned Modal Footer (Non-Overlapping Decision Actions / Read-Only Locked Footer) */}
+              {selectedSubmission.status === 'APPROVED' || selectedSubmission.isLocked ? (
+                <div className="shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Final Approved KYC — Read-Only Locked Mode</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubmission(null)}
+                    className="px-5 py-2 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    Close Inspection
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleDecisionSubmit}
+                  className="shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 space-y-3"
+                >
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono mb-2">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono mb-2">
                       Record Verification Decision
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <button
                         type="button"
                         onClick={() => {
                           setDecision('APPROVED');
                           setIsDocDropdownOpen(false);
                         }}
-                        className={`py-3 px-3 text-xs font-bold rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-150 active:scale-95 ${
+                        className={`py-2.5 px-3 text-xs font-bold rounded-xl border text-center flex items-center justify-center gap-2 transition-all duration-150 active:scale-95 ${
                           decision === 'APPROVED'
                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
                             : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
@@ -726,7 +1096,7 @@ export const KycVerificationPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setDecision('RESUBMISSION_REQUESTED')}
-                        className={`py-3 px-3 text-xs font-bold rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-150 active:scale-95 ${
+                        className={`py-2.5 px-3 text-xs font-bold rounded-xl border text-center flex items-center justify-center gap-2 transition-all duration-150 active:scale-95 ${
                           decision === 'RESUBMISSION_REQUESTED'
                             ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20'
                             : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
@@ -734,6 +1104,21 @@ export const KycVerificationPage: React.FC = () => {
                       >
                         <AlertCircle className="w-4 h-4" />
                         <span>Request Resubmit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddDocName('');
+                          setAddDocDescription('');
+                          setAddDocReason('');
+                          setAddDocMandatory(true);
+                          setIsAddDocModalOpen(true);
+                        }}
+                        className="py-2.5 px-3 text-xs font-bold rounded-xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center justify-center gap-2 transition-all duration-150 active:scale-95"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Documents</span>
                       </button>
                     </div>
                   </div>
@@ -743,21 +1128,16 @@ export const KycVerificationPage: React.FC = () => {
                       ? selectedSubmission.documents
                       : [];
                     return (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-3"
-                      >
-                        <div className="space-y-1.5">
-                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                      <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase">
                             Documents to Reupload ({uploadedDocs.length} Uploaded) *
                           </label>
                           <div className="relative">
                             <button
                               type="button"
                               onClick={() => setIsDocDropdownOpen((prev) => !prev)}
-                              className="w-full flex items-center justify-between text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl hover:border-amber-500 transition-colors"
+                              className="w-full flex items-center justify-between text-xs p-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl hover:border-amber-500 transition-colors"
                             >
                               <span className="truncate font-medium">
                                 {uploadedDocs.length === 0
@@ -772,8 +1152,8 @@ export const KycVerificationPage: React.FC = () => {
                             </button>
 
                             {isDocDropdownOpen && uploadedDocs.length > 0 && (
-                              <div className="mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg divide-y divide-slate-100 dark:divide-slate-800 max-h-56 overflow-y-auto">
-                                <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800/80 flex items-center justify-between text-[11px]">
+                              <div className="mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg divide-y divide-slate-100 dark:divide-slate-800 max-h-40 overflow-y-auto">
+                                <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 flex items-center justify-between text-[11px]">
                                   <span className="font-semibold text-slate-600 dark:text-slate-300">
                                     {uploadedDocs.length} Document{uploadedDocs.length === 1 ? '' : 's'} Uploaded
                                   </span>
@@ -793,7 +1173,7 @@ export const KycVerificationPage: React.FC = () => {
                                       key={docId || idx}
                                       type="button"
                                       onClick={() => toggleReuploadDoc(docId)}
-                                      className="w-full px-3 py-2.5 flex items-center justify-between gap-2 text-left hover:bg-amber-50/60 dark:hover:bg-slate-800/60 transition-colors"
+                                      className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left hover:bg-amber-50/60 dark:hover:bg-slate-800/60 transition-colors"
                                     >
                                       <div className="flex items-center gap-2.5 min-w-0">
                                         <span
@@ -847,8 +1227,8 @@ export const KycVerificationPage: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase">
                             Reason for Resubmission *
                           </label>
                           <textarea
@@ -856,33 +1236,247 @@ export const KycVerificationPage: React.FC = () => {
                             value={rejectionReason}
                             onChange={(e) => setRejectionReason(e.target.value)}
                             placeholder="Detail specific issues (e.g. blurred image, name mismatch on Udyam certificate)."
-                            rows={3}
-                            className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            rows={2}
+                            className="w-full text-xs p-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
                           />
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })()}
 
-                  <div className="pt-3 flex justify-end space-x-3">
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => setSelectedSubmission(null)}
-                      className="px-4 py-2.5 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                      className="px-4 py-2 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50 transition-all active:scale-95 shadow-md shadow-indigo-600/20"
+                      className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50 transition-all active:scale-95 shadow-md shadow-indigo-600/20"
                     >
                       {isSubmitting ? 'Recording Decision...' : 'Commit Verification Decision'}
                     </button>
                   </div>
                 </form>
-              </div>
+              )}
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Add Additional Document Request Modal */}
+      <AnimatePresence>
+        {isAddDocModalOpen && selectedSubmission && (
+          <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+            <div
+              onClick={() => setIsAddDocModalOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onSubmit={handleAddDocumentRequest}
+              className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 text-xs"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Request Additional Document</h3>
+                  <p className="text-[11px] text-slate-500">
+                    For {selectedSubmission.memberName} • Accepted: PDF, JPG, JPEG, PNG (Max 2 MB)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddDocModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block">
+                  Document Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={addDocName}
+                  onChange={(e) => setAddDocName(e.target.value)}
+                  placeholder="e.g. Board Resolution / Bank Cancelled Cheque / GST Certificate"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block">
+                  Description / Member Upload Instructions
+                </label>
+                <textarea
+                  rows={2}
+                  value={addDocDescription}
+                  onChange={(e) => setAddDocDescription(e.target.value)}
+                  placeholder="e.g. Upload stamped PDF showing authorized signatory & business registration."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block">
+                  Reason for Request <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  value={addDocReason}
+                  onChange={(e) => setAddDocReason(e.target.value)}
+                  placeholder="e.g. Additional statutory compliance check required for selected category."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">Mandatory Document</div>
+                  <div className="text-[11px] text-slate-500">Blocks final approval & dashboard access until uploaded</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={addDocMandatory}
+                  onChange={(e) => setAddDocMandatory(e.target.checked)}
+                  className="h-4 w-4 rounded text-indigo-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddDocModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingDoc}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold disabled:opacity-50"
+                >
+                  {isAddingDoc ? 'Sending...' : 'Send Document Request'}
+                </button>
+              </div>
+            </motion.form>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Reupload Modal for Uploaded Additional Document */}
+      <AnimatePresence>
+        {reuploadAdditionalTarget && selectedSubmission && (
+          <div className="fixed inset-0 z-[96] flex items-center justify-center p-4">
+            <div
+              onClick={() => setReuploadAdditionalTarget(null)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (additionalReviewReason.trim().length < 5) return;
+                handleReviewAdditionalRequest(
+                  reuploadAdditionalTarget.requestId,
+                  'REUPLOAD_REQUIRED',
+                  additionalReviewReason
+                );
+              }}
+              className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 text-xs"
+            >
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Request Reupload: {reuploadAdditionalTarget.documentName}
+              </h3>
+              <textarea
+                required
+                minLength={5}
+                rows={3}
+                value={additionalReviewReason}
+                onChange={(e) => setAdditionalReviewReason(e.target.value)}
+                placeholder="Explain clearly why the member must reupload this additional document..."
+                className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReuploadAdditionalTarget(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Boolean(isReviewingAdditionalId) || additionalReviewReason.trim().length < 5}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold disabled:opacity-50"
+                >
+                  Request Reupload
+                </button>
+              </div>
+            </motion.form>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Super Admin Reverification Exception Modal */}
+      <AnimatePresence>
+        {isReverifyModalOpen && selectedSubmission && isSuperAdmin && (
+          <div className="fixed inset-0 z-[97] flex items-center justify-center p-4">
+            <div
+              onClick={() => setIsReverifyModalOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onSubmit={handleSuperAdminReverify}
+              className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-amber-300 dark:border-amber-800 shadow-2xl p-6 space-y-4 text-xs"
+            >
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <RotateCcw className="w-4 h-4" />
+                <h3 className="text-base font-bold">Super Admin Reverification Override</h3>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                Reopening a permanently approved KYC is logged in the compliance audit trail. Enter a detailed reason (minimum 10 characters).
+              </p>
+              <textarea
+                required
+                minLength={10}
+                rows={3}
+                value={reverifyReason}
+                onChange={(e) => setReverifyReason(e.target.value)}
+                placeholder="Enter official compliance audit justification..."
+                className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsReverifyModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReverifying || reverifyReason.trim().length < 10}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold disabled:opacity-50"
+                >
+                  {isReverifying ? 'Reopening...' : 'Confirm Reverification'}
+                </button>
+              </div>
+            </motion.form>
           </div>
         )}
       </AnimatePresence>
