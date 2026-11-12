@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, LifeBuoy, UserPlus, Video, Clock, Check, ExternalLink, X } from 'lucide-react';
+import { Bell, LifeBuoy, UserPlus, Video, Clock, Check, ExternalLink, X, ShieldCheck, Briefcase, GitPullRequest } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
 
 export interface NotificationItem {
   id: string;
-  type: 'NEW_TICKET' | 'NEW_MEMBER' | 'MEETING_UPCOMING';
+  type: 'NEW_TICKET' | 'NEW_MEMBER' | 'MEETING_UPCOMING' | 'NEW_KYC' | 'NEW_SERVICE' | 'NEW_REQUEST';
   title: string;
   message: string;
   timestamp: string;
@@ -42,9 +42,10 @@ export const NotificationBell: React.FC = () => {
   const loadNotifications = async () => {
     try {
       const res = await apiFetch('/api/admin/notifications');
-      if (res && res.notifications) {
-        setNotifications(res.notifications);
-        setUnreadCount(res.unreadCount || 0);
+      if (res) {
+        const notifList = res.notifications || (Array.isArray(res) ? res : []);
+        setNotifications(notifList);
+        setUnreadCount(typeof res.unreadCount === 'number' ? res.unreadCount : notifList.length);
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -130,6 +131,15 @@ export const NotificationBell: React.FC = () => {
                   } else if (item.type === 'MEETING_UPCOMING') {
                     Icon = Video;
                     iconBg = 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400';
+                  } else if (item.type === 'NEW_KYC') {
+                    Icon = ShieldCheck;
+                    iconBg = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400';
+                  } else if (item.type === 'NEW_SERVICE') {
+                    Icon = Briefcase;
+                    iconBg = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400';
+                  } else if (item.type === 'NEW_REQUEST') {
+                    Icon = GitPullRequest;
+                    iconBg = 'bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400';
                   }
 
                   return (
