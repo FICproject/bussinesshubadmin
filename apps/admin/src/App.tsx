@@ -11,6 +11,7 @@ import { ServicesModerationPage } from './features/services/ServicesModerationPa
 import { RequestsDeskPage } from './features/requests/RequestsDeskPage';
 import { MeetingsPage } from './features/meetings/MeetingsPage';
 import { PaymentsPage } from './features/payments/PaymentsPage';
+import { PaymentReceiptPage } from './features/payments/PaymentReceiptPage';
 import { SupportTicketsPage } from './features/support/SupportTicketsPage';
 import { StaffManagementPage } from './features/staff/StaffManagementPage';
 import { AuditLogsPage } from './features/audit-logs/AuditLogsPage';
@@ -53,6 +54,7 @@ export const App: React.FC = () => {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="members" element={<MembersPage />} />
         <Route path="payments" element={<PaymentsPage />} />
+        <Route path="payments/:id/receipt" element={<PaymentReceiptPage />} />
         <Route path="meetings" element={<MeetingsPage />} />
         <Route path="services" element={<ServicesModerationPage />} />
         <Route path="referrals" element={<ReferralBonusPage />} />

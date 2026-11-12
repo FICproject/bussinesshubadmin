@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CreditCard,
   Search,
@@ -6,37 +6,120 @@ import {
   ShieldCheck,
   AlertCircle,
   Eye,
-  X
+  X,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../services/api';
-import { rowVariants } from '../../utils/animations';
 import { SkeletonTable } from '../../components/Skeleton';
 
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export const PaymentsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  const requestSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Debounce live search and reset to first page when search changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(search);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
-    loadPayments();
-  }, [statusFilter]);
+    loadPayments(page, statusFilter, debouncedSearch);
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [statusFilter, page, debouncedSearch]);
 
-  const loadPayments = async () => {
+  const loadPayments = async (targetPage = page, targetStatus = statusFilter, targetSearch = debouncedSearch) => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const seq = ++requestSeqRef.current;
     setLoading(true);
+    setErrorMsg('');
     try {
-      let url = `/api/admin/payments?status=${statusFilter}`;
-      if (search) url += `&search=${encodeURIComponent(search)}`;
-      const data = await apiFetch(url);
-      setPayments(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load payments', err);
+      const params = new URLSearchParams();
+      params.set('paginated', 'true');
+      params.set('status', targetStatus);
+      params.set('page', String(targetPage));
+      params.set('limit', '20');
+      if (targetSearch.trim()) {
+        params.set('search', targetSearch.trim());
+      }
+
+      const res = await apiFetch(`/api/admin/payments?${params.toString()}`, {
+        signal: controller.signal
+      });
+      if (seq !== requestSeqRef.current) return; // Ignore stale out-of-order response
+
+      if (Array.isArray(res)) {
+        setPayments(res);
+        setPagination({
+          page: 1,
+          limit: 20,
+          total: res.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false
+        });
+      } else {
+        setPayments(Array.isArray(res?.items) ? res.items : []);
+        if (res?.pagination) setPagination(res.pagination);
+        if (res?.statusCounts) setStatusCounts(res.statusCounts);
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      if (seq === requestSeqRef.current) {
+        console.error('Failed to load payments', err);
+        setErrorMsg(err?.message || 'Failed to load payment records.');
+      }
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   };
+
+  const handleStatusChange = (nextStatus: string) => {
+    setPage(1);
+    setStatusFilter(nextStatus);
+  };
+
+  const getReceiptLookupId = (p: any): string =>
+    String(p.paymentId || p.razorpayPaymentId || p.razorpayOrderId || p.internalOrderId || p._id || '');
 
   return (
     <div className="space-y-6">
@@ -63,7 +146,13 @@ export const PaymentsPage: React.FC = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadPayments()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setPage(1);
+                setDebouncedSearch(search);
+                loadPayments(1, statusFilter, search);
+              }
+            }}
             placeholder="Search member, pay_*, order_*, ref..."
             className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
@@ -72,18 +161,46 @@ export const PaymentsPage: React.FC = () => {
         <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Status:</span>
           <select
+            aria-label="Filter payments by status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusChange(e.target.value)}
             className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="ALL">All Payments</option>
-            <option value="SUCCESS">Success</option>
-            <option value="PENDING">Pending</option>
-            <option value="FAILED">Failed</option>
-            <option value="REFUNDED">Refunded</option>
+            <option value="ALL">
+              All Payments{typeof statusCounts.ALL === 'number' ? ` (${statusCounts.ALL})` : ''}
+            </option>
+            <option value="SUCCESS">
+              Success{typeof statusCounts.SUCCESS === 'number' ? ` (${statusCounts.SUCCESS})` : ''}
+            </option>
+            <option value="PENDING">
+              Pending{typeof statusCounts.PENDING === 'number' ? ` (${statusCounts.PENDING})` : ''}
+            </option>
+            <option value="FAILED">
+              Failed{typeof statusCounts.FAILED === 'number' ? ` (${statusCounts.FAILED})` : ''}
+            </option>
+            <option value="CANCELLED">
+              Cancelled{typeof statusCounts.CANCELLED === 'number' ? ` (${statusCounts.CANCELLED})` : ''}
+            </option>
+            <option value="REFUNDED">
+              Refunded{typeof statusCounts.REFUNDED === 'number' ? ` (${statusCounts.REFUNDED})` : ''}
+            </option>
           </select>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {errorMsg && (
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
+          <span>{errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => loadPayments(page, statusFilter, debouncedSearch)}
+            className="font-bold underline ml-3"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Payments Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -110,23 +227,39 @@ export const PaymentsPage: React.FC = () => {
                 </tr>
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-400 text-xs">
-                    No payments found.
+                  <td colSpan={8} className="px-6 py-10 text-center space-y-2">
+                    <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                      No matching payment records found
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {statusFilter !== 'ALL' || debouncedSearch.trim()
+                        ? `No ${statusFilter === 'ALL' ? '' : statusFilter + ' '}transactions match your current filter${debouncedSearch.trim() ? ` for "${debouncedSearch.trim()}"` : ''}.`
+                        : 'Verified and pending payment records will appear here.'}
+                    </p>
+                    {(statusFilter !== 'ALL' || search.trim() !== '') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('ALL');
+                          setSearch('');
+                          setDebouncedSearch('');
+                          setPage(1);
+                        }}
+                        className="mt-1 inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                      >
+                        Reset Filters
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
-                <AnimatePresence>
-                  {payments.map((p, idx) => (
-                    <motion.tr
-                      key={p._id}
-                      variants={rowVariants}
-                      initial="hidden"
-                      animate="show"
-                      exit="exit"
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150"
-                    >
+                payments.map((p, idx) => (
+                  <tr
+                    key={p._id || p.paymentId || idx}
+                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150"
+                  >
                       <td className="px-4 py-4 text-center font-mono text-xs font-bold text-slate-400 dark:text-slate-500">
-                        {idx + 1}
+                        {(pagination.page - 1) * pagination.limit + idx + 1}
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
@@ -207,21 +340,68 @@ export const PaymentsPage: React.FC = () => {
                       </td>
 
                       <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment(p)}
-                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-200 font-semibold"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>Inspect</span>
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/payments/${encodeURIComponent(getReceiptLookupId(p))}/receipt`)}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/70 dark:border-indigo-800/60 text-xs text-indigo-700 dark:text-indigo-300 font-semibold transition-colors"
+                          >
+                            <span>Receipt</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPayment(p)}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-200 font-semibold"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Inspect</span>
+                          </button>
+                        </div>
                       </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Server Pagination Footer */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-xs text-slate-600 dark:text-slate-400">
+          <div>
+            Showing{' '}
+            <span className="font-bold text-slate-900 dark:text-slate-100">
+              {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}
+            </span>
+            {' - '}
+            <span className="font-bold text-slate-900 dark:text-slate-100">
+              {Math.min(pagination.page * pagination.limit, pagination.total)}
+            </span>{' '}
+            of <span className="font-bold text-slate-900 dark:text-slate-100">{pagination.total}</span> records
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!pagination.hasPrevPage || loading}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Prev</span>
+            </button>
+            <span className="font-mono font-semibold px-2">
+              Page {pagination.page} / {pagination.totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={!pagination.hasNextPage || loading}
+              onClick={() => setPage((prev) => prev + 1)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <span>Next</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -308,6 +488,21 @@ export const PaymentsPage: React.FC = () => {
                   <span>{selectedPayment.failureReason}</span>
                 </div>
               )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const targetId = getReceiptLookupId(selectedPayment);
+                  setSelectedPayment(null);
+                  navigate(`/payments/${encodeURIComponent(targetId)}/receipt`);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors"
+              >
+                <span>Open Official Receipt</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
