@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
-  XCircle,
   AlertCircle,
   FileText,
   ExternalLink,
@@ -18,7 +17,8 @@ import {
   ArrowRight,
   Sparkles,
   History,
-  RotateCcw,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch, downloadAdminOriginalDocument } from '../../services/api';
@@ -36,33 +36,18 @@ export const KycVerificationPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Review decision states
-  const [decision, setDecision] = useState<'APPROVED' | 'REJECTED' | 'RESUBMISSION_REQUESTED'>('APPROVED');
-  const [reviewerNotes, setReviewerNotes] = useState('');
+  const [decision, setDecision] = useState<'APPROVED' | 'RESUBMISSION_REQUESTED'>('APPROVED');
+  const [reuploadDocKeys, setReuploadDocKeys] = useState<string[]>([]);
+  const [isDocDropdownOpen, setIsDocDropdownOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Document modal preview state
   const [previewDoc, setPreviewDoc] = useState<any | null>(null);
-
-  // Per-document review states
-  const [activeDocAction, setActiveDocAction] = useState<{
-    docKey: string;
-    action: 'REUPLOAD_REQUIRED' | 'REJECTED';
-    preset: string;
-    customReason: string;
-  } | null>(null);
-  const [reviewingDocKey, setReviewingDocKey] = useState<string | null>(null);
   const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Record<string, boolean>>({});
 
-  const PRESET_REUPLOAD_REASONS = [
-    'Document image is unclear.',
-    'Document is incomplete.',
-    'Document is expired.',
-    'Incorrect document uploaded.',
-    'Details do not match.',
-    'Unsupported document format.',
-    'Custom reason'
-  ];
+  const getDocIdentifier = (doc: any, idx?: number) =>
+    String(doc?.docKey || doc?.documentId || (idx !== undefined ? idx : ''));
 
   const getDocStatusBadge = (status?: string) => {
     const s = String(status || 'PENDING_REVIEW').toUpperCase();
@@ -78,55 +63,6 @@ export const KycVerificationPage: React.FC = () => {
     return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300">PENDING REVIEW</span>;
   };
 
-  const handleDocumentDecision = async (
-    doc: any,
-    docDecision: 'APPROVED' | 'REUPLOAD_REQUIRED' | 'REJECTED',
-    reasonText?: string
-  ) => {
-    if (!selectedSubmission) return;
-    const docRef = doc.docKey || doc.documentId;
-    const trimmedReason = (reasonText || '').trim();
-    if ((docDecision === 'REUPLOAD_REQUIRED' || docDecision === 'REJECTED') && !trimmedReason) {
-      await showAlert('Please select or enter a clear reason for this document action.', {
-        title: 'Reason Required',
-        severity: 'warning',
-      });
-      return;
-    }
-
-    setReviewingDocKey(String(docRef));
-    try {
-      const updatedSub = await apiFetch(
-        `/api/admin/kyc/${selectedSubmission._id}/documents/${encodeURIComponent(String(docRef))}/review`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            decision: docDecision,
-            reason: trimmedReason || undefined,
-            expectedVersion: doc.version || 1,
-          }),
-        }
-      );
-      if (updatedSub) {
-        setSelectedSubmission((prev: any) => ({ ...(prev || {}), ...updatedSub }));
-      }
-      setActiveDocAction(null);
-      await loadSubmissions();
-    } catch (err: any) {
-      await showAlert(`Document review failed: ${err.message}`, {
-        title: 'Document Verification Failed',
-        severity: 'danger',
-      });
-      // Refresh detail in case member uploaded a newer version concurrently
-      try {
-        const latest = await apiFetch(`/api/admin/kyc/${selectedSubmission._id}`);
-        if (latest) setSelectedSubmission(latest);
-      } catch {}
-    } finally {
-      setReviewingDocKey(null);
-    }
-  };
-
   const { showAlert } = useDialog();
 
   const tabs = [
@@ -134,7 +70,6 @@ export const KycVerificationPage: React.FC = () => {
     { label: 'Submitted', value: 'SUBMITTED' },
     { label: 'Approved', value: 'APPROVED' },
     { label: 'Resubmit', value: 'RESUBMISSION_REQUESTED' },
-    { label: 'Rejected', value: 'REJECTED' },
   ];
 
   useEffect(() => {
@@ -154,28 +89,73 @@ export const KycVerificationPage: React.FC = () => {
   };
 
   const handleOpenDetails = (sub: any) => {
-    setActiveDocAction(null);
     setExpandedHistoryKeys({});
+    setIsDocDropdownOpen(false);
     setSelectedSubmission(sub);
-    setDecision(sub.status === 'REJECTED' || sub.status === 'RESUBMISSION_REQUESTED' ? sub.status : 'APPROVED');
-    setReviewerNotes(sub.adminNotes || '');
+    setDecision(sub.status === 'RESUBMISSION_REQUESTED' ? 'RESUBMISSION_REQUESTED' : 'APPROVED');
+    const preselectedReupload = Array.isArray(sub.documents)
+      ? sub.documents
+          .map((d: any, idx: number) => ({ id: getDocIdentifier(d, idx), status: String(d.status || '').toUpperCase() }))
+          .filter((item: { id: string; status: string }) => item.status === 'REUPLOAD_REQUIRED' && item.id)
+          .map((item: { id: string }) => item.id)
+      : [];
+    setReuploadDocKeys(preselectedReupload);
     setRejectionReason(sub.rejectionReason || '');
+  };
+
+  const toggleReuploadDoc = (docId: string) => {
+    if (!docId) return;
+    setReuploadDocKeys((prev) =>
+      prev.includes(docId) ? prev.filter((k) => k !== docId) : [...prev, docId]
+    );
+  };
+
+  const toggleSelectAllReuploadDocs = (docs: any[]) => {
+    const allIds = docs.map((d, idx) => getDocIdentifier(d, idx)).filter(Boolean);
+    const allSelected = allIds.length > 0 && allIds.every((id) => reuploadDocKeys.includes(id));
+    setReuploadDocKeys(allSelected ? [] : allIds);
   };
 
   const handleDecisionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubmission) return;
 
+    const uploadedDocs = Array.isArray(selectedSubmission.documents) ? selectedSubmission.documents : [];
+    if (decision === 'RESUBMISSION_REQUESTED') {
+      if (uploadedDocs.length > 0 && reuploadDocKeys.length === 0) {
+        await showAlert('Please select at least one document requiring reupload from the dropdown.', {
+          title: 'Select Documents to Reupload',
+          severity: 'warning',
+        });
+        return;
+      }
+      if (!rejectionReason.trim()) {
+        await showAlert('Please enter a clear reason for resubmission.', {
+          title: 'Resubmission Reason Required',
+          severity: 'warning',
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       await apiFetch(`/api/admin/kyc/${selectedSubmission._id}/review`, {
         method: 'PATCH',
-        body: JSON.stringify({ decision, reviewerNotes, rejectionReason }),
+        body: JSON.stringify(
+          decision === 'APPROVED'
+            ? { decision: 'APPROVED' }
+            : {
+                decision: 'RESUBMISSION_REQUESTED',
+                rejectionReason: rejectionReason.trim(),
+                reuploadDocKeys,
+              }
+        ),
       });
-      // Close modal tab immediately and reset inputs
       setSelectedSubmission(null);
-      setReviewerNotes('');
       setRejectionReason('');
+      setReuploadDocKeys([]);
+      setIsDocDropdownOpen(false);
       await loadSubmissions();
     } catch (err: any) {
       await showAlert(`Error updating KYC: ${err.message}`, {
@@ -377,6 +357,14 @@ export const KycVerificationPage: React.FC = () => {
 
                   <p className="text-[11px] text-slate-400 flex items-center space-x-3 pt-0.5">
                     <span>Docs: <strong className="text-slate-600 dark:text-slate-300">{sub.documents?.length || 0}</strong> attached</span>
+                    {sub.docSummary?.reuploadRequired > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                          {sub.docSummary.reuploadRequired} Reupload Req
+                        </span>
+                      </>
+                    )}
                     <span>•</span>
                     <span>Submitted {new Date(sub.submittedAt).toLocaleDateString()}</span>
                   </p>
@@ -653,129 +641,26 @@ export const KycVerificationPage: React.FC = () => {
                                   )}
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {Array.isArray(doc.versionHistory) && doc.versionHistory.length > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setExpandedHistoryKeys((prev) => ({
-                                          ...prev,
-                                          [doc.docKey || String(i)]: !prev[doc.docKey || String(i)],
-                                        }))
-                                      }
-                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 inline-flex items-center gap-1"
-                                    >
-                                      <History className="w-3 h-3" />
-                                      <span>History ({doc.versionHistory.length})</span>
-                                    </button>
-                                  )}
-
+                                {Array.isArray(doc.versionHistory) && doc.versionHistory.length > 0 && (
                                   <button
                                     type="button"
-                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
-                                    onClick={() => handleDocumentDecision(doc, 'APPROVED')}
-                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
-                                  >
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    <span>{doc.status === 'APPROVED' ? 'Approved' : 'Approve Doc'}</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
                                     onClick={() =>
-                                      setActiveDocAction({
-                                        docKey: String(doc.docKey || doc.documentId),
-                                        action: 'REUPLOAD_REQUIRED',
-                                        preset: PRESET_REUPLOAD_REASONS[0],
-                                        customReason: '',
-                                      })
+                                      setExpandedHistoryKeys((prev) => ({
+                                        ...prev,
+                                        [doc.docKey || String(i)]: !prev[doc.docKey || String(i)],
+                                      }))
                                     }
-                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
+                                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 inline-flex items-center gap-1"
                                   >
-                                    <RotateCcw className="w-3 h-3" />
-                                    <span>Request Reupload</span>
+                                    <History className="w-3 h-3" />
+                                    <span>History ({doc.versionHistory.length})</span>
                                   </button>
-
-                                  <button
-                                    type="button"
-                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
-                                    onClick={() =>
-                                      setActiveDocAction({
-                                        docKey: String(doc.docKey || doc.documentId),
-                                        action: 'REJECTED',
-                                        preset: 'Custom reason',
-                                        customReason: '',
-                                      })
-                                    }
-                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
-                                  >
-                                    <XCircle className="w-3 h-3" />
-                                    <span>Reject</span>
-                                  </button>
-                                </div>
+                                )}
                               </div>
 
                               {(doc.adminReviewReason || doc.rejectionReason) && doc.status !== 'APPROVED' && (
                                 <div className="text-[11px] p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200">
                                   <strong>Admin Remark:</strong> {doc.adminReviewReason || doc.rejectionReason}
-                                </div>
-                              )}
-
-                              {activeDocAction && activeDocAction.docKey === String(doc.docKey || doc.documentId) && (
-                                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100">
-                                      {activeDocAction.action === 'REUPLOAD_REQUIRED' ? 'Select Reupload Reason' : 'Enter Rejection Reason'} *
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveDocAction(null)}
-                                      className="text-[11px] text-slate-400 hover:text-slate-700"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                  <select
-                                    value={activeDocAction.preset}
-                                    onChange={(e) =>
-                                      setActiveDocAction((prev) => (prev ? { ...prev, preset: e.target.value } : null))
-                                    }
-                                    className="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  >
-                                    {PRESET_REUPLOAD_REASONS.map((r) => (
-                                      <option key={r} value={r}>{r}</option>
-                                    ))}
-                                  </select>
-                                  {activeDocAction.preset === 'Custom reason' && (
-                                    <textarea
-                                      rows={2}
-                                      value={activeDocAction.customReason}
-                                      onChange={(e) =>
-                                        setActiveDocAction((prev) => (prev ? { ...prev, customReason: e.target.value } : null))
-                                      }
-                                      placeholder="Specify the exact correction required from the member..."
-                                      className="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                    />
-                                  )}
-                                  <div className="flex justify-end">
-                                    <button
-                                      type="button"
-                                      disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
-                                      onClick={() =>
-                                        handleDocumentDecision(
-                                          doc,
-                                          activeDocAction.action,
-                                          activeDocAction.preset === 'Custom reason'
-                                            ? activeDocAction.customReason
-                                            : activeDocAction.preset
-                                        )
-                                      }
-                                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
-                                    >
-                                      {reviewingDocKey === String(doc.docKey || doc.documentId) ? 'Saving...' : 'Confirm Document Decision'}
-                                    </button>
-                                  </div>
                                 </div>
                               )}
 
@@ -818,21 +703,16 @@ export const KycVerificationPage: React.FC = () => {
                 {/* Compliance Decision Panel */}
                 <form onSubmit={handleDecisionSubmit} className="pt-5 border-t border-slate-100 dark:border-slate-800 space-y-4">
                   <div>
-                    {selectedSubmission.docSummary && !selectedSubmission.docSummary.allDocsApproved && (
-                      <div className="mb-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300">
-                        Document Check: <strong>{selectedSubmission.docSummary.approved}/{selectedSubmission.docSummary.total}</strong> documents approved.
-                        {selectedSubmission.docSummary.total > 0
-                          ? ' Approve all individual documents above before granting final KYC approval.'
-                          : ' Waiting for member to upload required documents.'}
-                      </div>
-                    )}
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono mb-2">
                       Record Verification Decision
                     </label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setDecision('APPROVED')}
+                        onClick={() => {
+                          setDecision('APPROVED');
+                          setIsDocDropdownOpen(false);
+                        }}
                         className={`py-3 px-3 text-xs font-bold rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-150 active:scale-95 ${
                           decision === 'APPROVED'
                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
@@ -855,55 +735,134 @@ export const KycVerificationPage: React.FC = () => {
                         <AlertCircle className="w-4 h-4" />
                         <span>Request Resubmit</span>
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setDecision('REJECTED')}
-                        className={`py-3 px-3 text-xs font-bold rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-150 active:scale-95 ${
-                          decision === 'REJECTED'
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-600/20'
-                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>Reject Application</span>
-                      </button>
                     </div>
                   </div>
 
-                  {decision !== 'APPROVED' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-1.5"
-                    >
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
-                        Reason for {decision === 'REJECTED' ? 'Rejection' : 'Resubmission'} *
-                      </label>
-                      <textarea
-                        required
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="Detail specific issues (e.g. blurred image, name mismatch on Udyam certificate)."
-                        rows={3}
-                        className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
-                      />
-                    </motion.div>
-                  )}
+                  {decision === 'RESUBMISSION_REQUESTED' && (() => {
+                    const uploadedDocs = Array.isArray(selectedSubmission.documents)
+                      ? selectedSubmission.documents
+                      : [];
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-3"
+                      >
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            Documents to Reupload ({uploadedDocs.length} Uploaded) *
+                          </label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setIsDocDropdownOpen((prev) => !prev)}
+                              className="w-full flex items-center justify-between text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl hover:border-amber-500 transition-colors"
+                            >
+                              <span className="truncate font-medium">
+                                {uploadedDocs.length === 0
+                                  ? 'No documents uploaded'
+                                  : reuploadDocKeys.length === 0
+                                  ? `Select documents to reupload (${uploadedDocs.length} uploaded)`
+                                  : `${reuploadDocKeys.length} of ${uploadedDocs.length} uploaded document${reuploadDocKeys.length > 1 ? 's' : ''} selected`}
+                              </span>
+                              <ChevronDown
+                                className={`w-4 h-4 text-slate-400 transition-transform ${isDocDropdownOpen ? 'rotate-180' : ''}`}
+                              />
+                            </button>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                      Internal Verification Note (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={reviewerNotes}
-                      onChange={(e) => setReviewerNotes(e.target.value)}
-                      placeholder="e.g. Cross-verified with MCA registry."
-                      className="w-full text-xs p-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    />
-                  </div>
+                            {isDocDropdownOpen && uploadedDocs.length > 0 && (
+                              <div className="mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg divide-y divide-slate-100 dark:divide-slate-800 max-h-56 overflow-y-auto">
+                                <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800/80 flex items-center justify-between text-[11px]">
+                                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                                    {uploadedDocs.length} Document{uploadedDocs.length === 1 ? '' : 's'} Uploaded
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSelectAllReuploadDocs(uploadedDocs)}
+                                    className="font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                  >
+                                    {reuploadDocKeys.length === uploadedDocs.length ? 'Clear All' : 'Select All'}
+                                  </button>
+                                </div>
+                                {uploadedDocs.map((doc: any, idx: number) => {
+                                  const docId = getDocIdentifier(doc, idx);
+                                  const isChecked = reuploadDocKeys.includes(docId);
+                                  return (
+                                    <button
+                                      key={docId || idx}
+                                      type="button"
+                                      onClick={() => toggleReuploadDoc(docId)}
+                                      className="w-full px-3 py-2.5 flex items-center justify-between gap-2 text-left hover:bg-amber-50/60 dark:hover:bg-slate-800/60 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <span
+                                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                            isChecked
+                                              ? 'bg-amber-600 border-amber-600 text-white'
+                                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                          }`}
+                                        >
+                                          {isChecked && <Check className="w-3 h-3" />}
+                                        </span>
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                            {doc.title || doc.documentType || `Document #${idx + 1}`}
+                                          </div>
+                                          <div className="text-[10px] text-slate-400 truncate">
+                                            {doc.fileName || 'Uploaded file'} • v{doc.version || 1}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {getDocStatusBadge(doc.status)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {reuploadDocKeys.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {uploadedDocs
+                                .map((doc: any, idx: number) => ({ doc, docId: getDocIdentifier(doc, idx) }))
+                                .filter(({ docId }: { docId: string }) => reuploadDocKeys.includes(docId))
+                                .map(({ doc, docId }: { doc: any; docId: string }) => (
+                                  <span
+                                    key={docId}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+                                  >
+                                    <span>{doc.title || doc.documentType || docId}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleReuploadDoc(docId)}
+                                      className="hover:text-amber-950 dark:hover:text-white"
+                                      aria-label="Remove document selection"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            Reason for Resubmission *
+                          </label>
+                          <textarea
+                            required
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            placeholder="Detail specific issues (e.g. blurred image, name mismatch on Udyam certificate)."
+                            rows={3}
+                            className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
 
                   <div className="pt-3 flex justify-end space-x-3">
                     <button
