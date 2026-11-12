@@ -52,14 +52,28 @@ export const NotificationBell: React.FC = () => {
     }
   };
 
-  const handleNotificationClick = (item: NotificationItem) => {
+  const handleNotificationClick = async (item: NotificationItem) => {
+    if (!item.isRead) {
+      setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+      try {
+        await apiFetch(`/api/admin/notifications/${item.id}/read`, { method: 'PATCH' });
+      } catch {
+        // Keep local optimistic state if transient network error
+      }
+    }
     setIsOpen(false);
     navigate(item.link);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setUnreadCount(0);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await apiFetch('/api/admin/notifications/read-all', { method: 'PATCH' });
+    } catch {
+      // Ignore transient error
+    }
   };
 
   return (

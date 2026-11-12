@@ -17,6 +17,8 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  History,
+  RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch, downloadAdminOriginalDocument } from '../../services/api';
@@ -41,6 +43,89 @@ export const KycVerificationPage: React.FC = () => {
 
   // Document modal preview state
   const [previewDoc, setPreviewDoc] = useState<any | null>(null);
+
+  // Per-document review states
+  const [activeDocAction, setActiveDocAction] = useState<{
+    docKey: string;
+    action: 'REUPLOAD_REQUIRED' | 'REJECTED';
+    preset: string;
+    customReason: string;
+  } | null>(null);
+  const [reviewingDocKey, setReviewingDocKey] = useState<string | null>(null);
+  const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Record<string, boolean>>({});
+
+  const PRESET_REUPLOAD_REASONS = [
+    'Document image is unclear.',
+    'Document is incomplete.',
+    'Document is expired.',
+    'Incorrect document uploaded.',
+    'Details do not match.',
+    'Unsupported document format.',
+    'Custom reason'
+  ];
+
+  const getDocStatusBadge = (status?: string) => {
+    const s = String(status || 'PENDING_REVIEW').toUpperCase();
+    if (s === 'APPROVED' || s === 'VERIFIED') {
+      return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">APPROVED</span>;
+    }
+    if (s === 'REUPLOAD_REQUIRED') {
+      return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">REUPLOAD REQUIRED</span>;
+    }
+    if (s === 'REJECTED') {
+      return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">REJECTED</span>;
+    }
+    return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300">PENDING REVIEW</span>;
+  };
+
+  const handleDocumentDecision = async (
+    doc: any,
+    docDecision: 'APPROVED' | 'REUPLOAD_REQUIRED' | 'REJECTED',
+    reasonText?: string
+  ) => {
+    if (!selectedSubmission) return;
+    const docRef = doc.docKey || doc.documentId;
+    const trimmedReason = (reasonText || '').trim();
+    if ((docDecision === 'REUPLOAD_REQUIRED' || docDecision === 'REJECTED') && !trimmedReason) {
+      await showAlert('Please select or enter a clear reason for this document action.', {
+        title: 'Reason Required',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    setReviewingDocKey(String(docRef));
+    try {
+      const updatedSub = await apiFetch(
+        `/api/admin/kyc/${selectedSubmission._id}/documents/${encodeURIComponent(String(docRef))}/review`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            decision: docDecision,
+            reason: trimmedReason || undefined,
+            expectedVersion: doc.version || 1,
+          }),
+        }
+      );
+      if (updatedSub) {
+        setSelectedSubmission((prev: any) => ({ ...(prev || {}), ...updatedSub }));
+      }
+      setActiveDocAction(null);
+      await loadSubmissions();
+    } catch (err: any) {
+      await showAlert(`Document review failed: ${err.message}`, {
+        title: 'Document Verification Failed',
+        severity: 'danger',
+      });
+      // Refresh detail in case member uploaded a newer version concurrently
+      try {
+        const latest = await apiFetch(`/api/admin/kyc/${selectedSubmission._id}`);
+        if (latest) setSelectedSubmission(latest);
+      } catch {}
+    } finally {
+      setReviewingDocKey(null);
+    }
+  };
 
   const { showAlert } = useDialog();
 
@@ -69,6 +154,8 @@ export const KycVerificationPage: React.FC = () => {
   };
 
   const handleOpenDetails = (sub: any) => {
+    setActiveDocAction(null);
+    setExpandedHistoryKeys({});
     setSelectedSubmission(sub);
     setDecision(sub.status === 'REJECTED' || sub.status === 'RESUBMISSION_REQUESTED' ? sub.status : 'APPROVED');
     setReviewerNotes(sub.adminNotes || '');
@@ -539,7 +626,7 @@ export const KycVerificationPage: React.FC = () => {
                             </div>
 
                             {/* Inline Inspection Preview Box (Authenticated Optimized Preview / Exact Original) */}
-                            <div className="p-3 bg-slate-100/60 dark:bg-slate-950/40 flex items-center justify-center min-h-[160px] max-h-[460px] overflow-auto">
+                            <div className="p-3 bg-slate-100/60 dark:bg-slate-950/40 flex items-center justify-center min-h-[160px] max-h-[420px] overflow-auto">
                               <AuthenticatedDocumentPreview
                                 documentId={doc.documentId}
                                 fileUrl={doc.fileUrl}
@@ -549,6 +636,173 @@ export const KycVerificationPage: React.FC = () => {
                                 checksum={doc.checksum}
                                 title={doc.title || doc.documentType}
                               />
+                            </div>
+
+                            {/* Individual Document Verification Bar */}
+                            <div className="p-3.5 bg-slate-50/90 dark:bg-slate-800/90 border-t border-slate-200 dark:border-slate-700/80 space-y-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {getDocStatusBadge(doc.status)}
+                                  <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                    v{doc.version || 1}
+                                  </span>
+                                  {Number(doc.version || 1) > 1 && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300">
+                                      New Resubmitted Version
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {Array.isArray(doc.versionHistory) && doc.versionHistory.length > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedHistoryKeys((prev) => ({
+                                          ...prev,
+                                          [doc.docKey || String(i)]: !prev[doc.docKey || String(i)],
+                                        }))
+                                      }
+                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 inline-flex items-center gap-1"
+                                    >
+                                      <History className="w-3 h-3" />
+                                      <span>History ({doc.versionHistory.length})</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
+                                    onClick={() => handleDocumentDecision(doc, 'APPROVED')}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>{doc.status === 'APPROVED' ? 'Approved' : 'Approve Doc'}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
+                                    onClick={() =>
+                                      setActiveDocAction({
+                                        docKey: String(doc.docKey || doc.documentId),
+                                        action: 'REUPLOAD_REQUIRED',
+                                        preset: PRESET_REUPLOAD_REASONS[0],
+                                        customReason: '',
+                                      })
+                                    }
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Request Reupload</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
+                                    onClick={() =>
+                                      setActiveDocAction({
+                                        docKey: String(doc.docKey || doc.documentId),
+                                        action: 'REJECTED',
+                                        preset: 'Custom reason',
+                                        customReason: '',
+                                      })
+                                    }
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50 inline-flex items-center gap-1"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    <span>Reject</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {(doc.adminReviewReason || doc.rejectionReason) && doc.status !== 'APPROVED' && (
+                                <div className="text-[11px] p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200">
+                                  <strong>Admin Remark:</strong> {doc.adminReviewReason || doc.rejectionReason}
+                                </div>
+                              )}
+
+                              {activeDocAction && activeDocAction.docKey === String(doc.docKey || doc.documentId) && (
+                                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100">
+                                      {activeDocAction.action === 'REUPLOAD_REQUIRED' ? 'Select Reupload Reason' : 'Enter Rejection Reason'} *
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveDocAction(null)}
+                                      className="text-[11px] text-slate-400 hover:text-slate-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  <select
+                                    value={activeDocAction.preset}
+                                    onChange={(e) =>
+                                      setActiveDocAction((prev) => (prev ? { ...prev, preset: e.target.value } : null))
+                                    }
+                                    className="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  >
+                                    {PRESET_REUPLOAD_REASONS.map((r) => (
+                                      <option key={r} value={r}>{r}</option>
+                                    ))}
+                                  </select>
+                                  {activeDocAction.preset === 'Custom reason' && (
+                                    <textarea
+                                      rows={2}
+                                      value={activeDocAction.customReason}
+                                      onChange={(e) =>
+                                        setActiveDocAction((prev) => (prev ? { ...prev, customReason: e.target.value } : null))
+                                      }
+                                      placeholder="Specify the exact correction required from the member..."
+                                      className="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                    />
+                                  )}
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      disabled={reviewingDocKey === String(doc.docKey || doc.documentId)}
+                                      onClick={() =>
+                                        handleDocumentDecision(
+                                          doc,
+                                          activeDocAction.action,
+                                          activeDocAction.preset === 'Custom reason'
+                                            ? activeDocAction.customReason
+                                            : activeDocAction.preset
+                                        )
+                                      }
+                                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    >
+                                      {reviewingDocKey === String(doc.docKey || doc.documentId) ? 'Saving...' : 'Confirm Document Decision'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {expandedHistoryKeys[doc.docKey || String(i)] && Array.isArray(doc.versionHistory) && doc.versionHistory.length > 0 && (
+                                <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Archived Version History (Read-Only)
+                                  </div>
+                                  {doc.versionHistory.map((hv: any, hIdx: number) => (
+                                    <div key={hIdx} className="text-[11px] flex flex-wrap items-center justify-between gap-2 text-slate-600 dark:text-slate-300 border-t border-slate-200/70 dark:border-slate-800 pt-1">
+                                      <span>
+                                        <strong>v{hv.version}</strong> ? {hv.fileName} ({hv.status})
+                                        {hv.reason ? ` ? Reason: ${hv.reason}` : ''}
+                                      </span>
+                                      {hv.documentId && (
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadAdminOriginalDocument(hv.documentId, hv.fileName)}
+                                          className="text-[10px] text-indigo-600 hover:underline font-semibold"
+                                        >
+                                          Download v{hv.version}
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -564,6 +818,14 @@ export const KycVerificationPage: React.FC = () => {
                 {/* Compliance Decision Panel */}
                 <form onSubmit={handleDecisionSubmit} className="pt-5 border-t border-slate-100 dark:border-slate-800 space-y-4">
                   <div>
+                    {selectedSubmission.docSummary && !selectedSubmission.docSummary.allDocsApproved && (
+                      <div className="mb-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300">
+                        Document Check: <strong>{selectedSubmission.docSummary.approved}/{selectedSubmission.docSummary.total}</strong> documents approved.
+                        {selectedSubmission.docSummary.total > 0
+                          ? ' Approve all individual documents above before granting final KYC approval.'
+                          : ' Waiting for member to upload required documents.'}
+                      </div>
+                    )}
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono mb-2">
                       Record Verification Decision
                     </label>
