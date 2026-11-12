@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
+import { AuthenticatedDocumentPreview } from './AuthenticatedDocumentPreview';
 
 interface MemberDetailModalProps {
   memberId: string | null;
@@ -784,10 +785,15 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
               </div>
 
               <div className="mt-3 flex-1 overflow-auto flex items-center justify-center bg-slate-950/5 dark:bg-slate-950/80 rounded-xl p-3 border border-slate-200/60 dark:border-slate-800">
-                <img
-                  src={previewDoc.fileUrl}
-                  alt={previewDoc.title}
-                  className="max-h-[58vh] w-auto object-contain rounded-lg shadow-sm"
+                <AuthenticatedDocumentPreview
+                  documentId={previewDoc.documentId}
+                  fileUrl={previewDoc.fileUrl}
+                  fileName={previewDoc.fileName}
+                  originalMimeType={previewDoc.originalMimeType}
+                  originalFileSize={previewDoc.originalFileSize}
+                  checksum={previewDoc.checksum}
+                  title={previewDoc.title}
+                  maxHeightClass="max-h-[55vh]"
                 />
               </div>
 

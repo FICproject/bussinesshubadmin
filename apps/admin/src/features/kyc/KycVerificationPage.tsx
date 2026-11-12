@@ -19,7 +19,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from '../../services/api';
+import { apiFetch, downloadAdminOriginalDocument } from '../../services/api';
+import { AuthenticatedDocumentPreview } from '../../components/AuthenticatedDocumentPreview';
 import { containerVariants, itemVariants } from '../../utils/animations';
 import { SkeletonList, SkeletonCards } from '../../components/Skeleton';
 import { useDialog } from '../../context/DialogContext';
@@ -462,7 +463,7 @@ export const KycVerificationPage: React.FC = () => {
                         ₹{selectedSubmission.paymentDetails?.amount || 99}.00 Membership Fee Received via Razorpay
                       </span>
                       <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
-                        Payment ID: {selectedSubmission.paymentDetails?.paymentId || selectedSubmission.memberId?.paymentId || 'pay_rzp_verified'} • Order: {selectedSubmission.paymentDetails?.orderId || 'order_rzp_verified'}
+                        Payment ID: {selectedSubmission.paymentDetails?.paymentId || selectedSubmission.memberId?.paymentId || '—'} • Order: {selectedSubmission.paymentDetails?.orderId || '—'}
                       </span>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 uppercase font-mono">
@@ -514,7 +515,16 @@ export const KycVerificationPage: React.FC = () => {
                                     ID: {doc.documentNumber}
                                   </span>
                                 )}
-                                {doc.fileUrl && (
+                                {doc.documentId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadAdminOriginalDocument(doc.documentId, doc.fileName)}
+                                    className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-md hover:bg-indigo-100"
+                                    title="Download exact original file"
+                                  >
+                                    Download Original
+                                  </button>
+                                ) : doc.fileUrl ? (
                                   <a
                                     href={doc.fileUrl}
                                     target="_blank"
@@ -524,41 +534,21 @@ export const KycVerificationPage: React.FC = () => {
                                   >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                   </a>
-                                )}
+                                ) : null}
                               </div>
                             </div>
 
-                            {/* Inline Inspection Preview Box */}
-                            <div className="p-3 bg-slate-100/60 dark:bg-slate-950/40 flex items-center justify-center min-h-[160px] max-h-[380px] overflow-auto">
-                              {isImage ? (
-                                <img
-                                  src={doc.fileUrl}
-                                  alt={doc.title || 'KYC Document'}
-                                  className="max-h-[340px] w-auto max-w-full object-contain rounded-lg shadow-sm border border-slate-200 dark:border-slate-800"
-                                />
-                              ) : isPdf ? (
-                                <iframe
-                                  src={doc.fileUrl}
-                                  title={doc.title || 'KYC Document'}
-                                  className="w-full h-[320px] rounded-lg border border-slate-200 dark:border-slate-800"
-                                />
-                              ) : (
-                                <div className="text-center p-6 space-y-2">
-                                  <FileText className="w-8 h-8 text-slate-400 mx-auto" />
-                                  <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">Attached document file</p>
-                                  {doc.fileUrl && (
-                                    <a
-                                      href={doc.fileUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
-                                    >
-                                      <span>Open File</span>
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  )}
-                                </div>
-                              )}
+                            {/* Inline Inspection Preview Box (Authenticated Optimized Preview / Exact Original) */}
+                            <div className="p-3 bg-slate-100/60 dark:bg-slate-950/40 flex items-center justify-center min-h-[160px] max-h-[460px] overflow-auto">
+                              <AuthenticatedDocumentPreview
+                                documentId={doc.documentId}
+                                fileUrl={doc.fileUrl}
+                                fileName={doc.fileName}
+                                originalMimeType={doc.originalMimeType}
+                                originalFileSize={doc.originalFileSize}
+                                checksum={doc.checksum}
+                                title={doc.title || doc.documentType}
+                              />
                             </div>
                           </div>
                         );

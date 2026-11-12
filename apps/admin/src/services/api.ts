@@ -76,3 +76,73 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
   return data.data;
 }
 
+
+function parseFilenameFromDispositionHeader(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback;
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+  const simpleMatch = disposition.match(/filename="?([^";\r\n]+)"?/i);
+  return simpleMatch?.[1] || fallback;
+}
+
+export async function fetchAdminDocumentBlob(
+  documentId: string,
+  options?: { variant?: 'preview' | 'thumbnail' | 'original'; action?: 'view' | 'download' }
+): Promise<{
+  blobUrl: string;
+  blob: Blob;
+  mimeType: string;
+  fileName: string;
+  checksum: string | null;
+  variantServed: string | null;
+}> {
+  const { token } = getStoredAuth();
+  const action = options?.action || 'view';
+  const variantQuery =
+    action === 'view' ? `?variant=${encodeURIComponent(options?.variant || 'preview')}` : '';
+  const url = `${API_BASE_URL}/api/admin/documents/${encodeURIComponent(documentId)}/${action}${variantQuery}`;
+
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `Failed to load document (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const fileName = parseFilenameFromDispositionHeader(
+    response.headers.get('Content-Disposition'),
+    `${documentId}`
+  );
+  return {
+    blobUrl,
+    blob,
+    mimeType: response.headers.get('Content-Type') || blob.type || 'application/octet-stream',
+    fileName,
+    checksum: response.headers.get('X-Original-Checksum-Sha256'),
+    variantServed: response.headers.get('X-Document-Variant')
+  };
+}
+
+export async function downloadAdminOriginalDocument(
+  documentId: string,
+  fallbackFileName?: string
+): Promise<void> {
+  const res = await fetchAdminDocumentBlob(documentId, { action: 'download' });
+  const link = document.createElement('a');
+  link.href = res.blobUrl;
+  link.download = fallbackFileName || res.fileName || documentId;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(res.blobUrl), 15000);
+}
