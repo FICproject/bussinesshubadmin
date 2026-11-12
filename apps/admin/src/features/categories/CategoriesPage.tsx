@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { containerVariants, itemVariants } from '../../utils/animations';
 import { SkeletonCards } from '../../components/Skeleton';
+import { useDialog } from '../../context/DialogContext';
 
 export const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
@@ -37,6 +38,8 @@ export const CategoriesPage: React.FC = () => {
   const [description, setDescription] = useState('');
   const [subcategoriesStr, setSubcategoriesStr] = useState('');
   const [kycDocsStr, setKycDocsStr] = useState('PAN Card, Business Registration Certificate');
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const { showAlert, showConfirm } = useDialog();
 
   useEffect(() => {
     loadCategories();
@@ -81,14 +84,52 @@ export const CategoriesPage: React.FC = () => {
 
   const handleDeleteSubcategory = async (subSlugOrId: string) => {
     if (!selectedCategory) return;
-    if (!confirm('Are you sure you want to remove this subcategory?')) return;
+    const confirmed = await showConfirm('Are you sure you want to remove this subcategory?', {
+      title: 'Remove Subcategory',
+      severity: 'warning',
+      confirmText: 'Remove',
+    });
+    if (!confirmed) return;
     try {
       await apiFetch(`/api/admin/categories/${selectedCategory._id}/subcategories/${subSlugOrId}`, {
         method: 'DELETE'
       });
       await loadCategories();
     } catch (err: any) {
-      alert(`Error deleting subcategory: ${err.message}`);
+      await showAlert(`Error deleting subcategory: ${err.message}`, {
+        title: 'Error',
+        severity: 'danger',
+      });
+    }
+  };
+
+  const handleDeleteCategory = async (e: React.MouseEvent, cat: any) => {
+    e.stopPropagation();
+    const confirmed = await showConfirm(
+      `Are you sure you want to remove main category "${cat.name}"? It will be removed from the ecosystem catalog and registration choices.`,
+      {
+        title: 'Remove Main Category',
+        severity: 'danger',
+        confirmText: 'Remove Category',
+      }
+    );
+    if (!confirmed) return;
+    setDeletingCategoryId(cat._id);
+    try {
+      await apiFetch(`/api/admin/categories/${cat._id}`, {
+        method: 'DELETE'
+      });
+      if (selectedCategory?._id === cat._id) {
+        setSelectedCategory(null);
+      }
+      await loadCategories();
+    } catch (err: any) {
+      await showAlert(`Error removing main category: ${err.message}`, {
+        title: 'Remove Failed',
+        severity: 'danger',
+      });
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -172,7 +213,7 @@ export const CategoriesPage: React.FC = () => {
           className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-semibold transition-all active:scale-95 shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          <span>New Category</span>
+          <span>Add Main Category</span>
         </button>
       </div>
 
@@ -283,15 +324,27 @@ export const CategoriesPage: React.FC = () => {
                       <span className="text-xs font-mono text-slate-400">/{cat.slug}</span>
                     </div>
                   </div>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                      cat.isActive
-                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {cat.isActive ? 'Active' : 'Disabled'}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                        cat.isActive
+                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                      }`}
+                    >
+                      {cat.isActive ? 'Active' : 'Disabled'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCategory(e, cat)}
+                      disabled={deletingCategoryId === cat._id}
+                      title="Remove Main Category"
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/80 dark:border-rose-800/60 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{deletingCategoryId === cat._id ? 'Removing...' : 'Remove'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-3 line-clamp-2">
@@ -388,6 +441,16 @@ export const CategoriesPage: React.FC = () => {
                       >
                         {cat.isActive ? 'Active' : 'Disabled'}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteCategory(e, cat)}
+                        disabled={deletingCategoryId === cat._id}
+                        title="Remove Main Category"
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/80 dark:border-rose-800/60 text-[10px] font-semibold transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>{deletingCategoryId === cat._id ? 'Removing...' : 'Remove'}</span>
+                      </button>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
                       {cat.description || 'No description provided.'}
@@ -730,7 +793,16 @@ export const CategoriesPage: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteCategory(e, selectedCategory)}
+                  disabled={deletingCategoryId === selectedCategory._id}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-lg text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deletingCategoryId === selectedCategory._id ? 'Removing...' : 'Remove Main Category'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setSelectedCategory(null)}

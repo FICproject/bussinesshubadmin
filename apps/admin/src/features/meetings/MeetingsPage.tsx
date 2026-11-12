@@ -9,7 +9,6 @@ import {
   ExternalLink,
   CheckCircle2,
   XCircle,
-  PlayCircle,
   X,
   BellRing,
   CalendarClock,
@@ -40,6 +39,9 @@ export const MeetingsPage: React.FC = () => {
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [meetingLink, setMeetingLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Participants View Modal State
+  const [viewMembersMeeting, setViewMembersMeeting] = useState<any | null>(null);
 
   // Reschedule Modal State
   const [rescheduleTarget, setRescheduleTarget] = useState<any | null>(null);
@@ -94,8 +96,33 @@ export const MeetingsPage: React.FC = () => {
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !scheduledAt || selectedMemberIds.length === 0) {
-      alert('Please fill out the meeting title, date/time, and pick at least one customer.');
+    if (!title.trim() || !scheduledAt || selectedMemberIds.length === 0) {
+      await showAlert('Please fill out the meeting title, date/time, and pick at least one customer.', {
+        title: 'Missing Required Fields',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    const trimmedUrl = meetingLink.trim();
+    if (!trimmedUrl) {
+      await showAlert('Meeting URL is mandatory. Please provide a valid video call URL.', {
+        title: 'Meeting URL Required',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    try {
+      const parsed = new URL(trimmedUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Invalid protocol');
+      }
+    } catch {
+      await showAlert('Please enter a valid Meeting URL starting with http:// or https://.', {
+        title: 'Invalid Meeting URL',
+        severity: 'warning',
+      });
       return;
     }
 
@@ -104,12 +131,12 @@ export const MeetingsPage: React.FC = () => {
       await apiFetch('/api/admin/meetings', {
         method: 'POST',
         body: JSON.stringify({
-          title,
+          title: title.trim(),
           description,
           participantMemberIds: selectedMemberIds,
           scheduledAt,
           durationMinutes: Number(durationMinutes),
-          meetingLink: meetingLink || undefined,
+          meetingLink: trimmedUrl,
         }),
       });
 
@@ -320,34 +347,24 @@ export const MeetingsPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 max-w-sm">
-                        <div className="space-y-1">
-                          {m.participantMemberIds?.map((p: any) => (
-                            <div key={p._id} className="text-xs">
-                              <span className="font-medium text-slate-800 dark:text-slate-200">{p.name}</span>
-                              <span className="text-slate-400 text-[11px] block">{p.email}</span>
-                            </div>
-                          ))}
-                          {m.externalParticipants?.map((e: any, idx: number) => (
-                            <div key={idx} className="text-xs">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-medium text-slate-800 dark:text-slate-200">{e.name}</span>
-                                {e.roleOrCompany && (
-                                  <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-800/60">
-                                    {e.roleOrCompany}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-slate-400 text-[11px] block mt-0.5">
-                                {e.email} {e.phone ? `• ${e.phone}` : ''}
-                              </span>
-                            </div>
-                          ))}
-                          {(!m.participantMemberIds || m.participantMemberIds.length === 0) &&
-                            (!m.externalParticipants || m.externalParticipants.length === 0) && (
-                              <span className="text-xs text-slate-400">No participants listed</span>
-                            )}
-                        </div>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          const totalParticipants =
+                            (m.participantMemberIds?.length || 0) + (m.externalParticipants?.length || 0);
+                          if (totalParticipants === 0) {
+                            return <span className="text-xs text-slate-400">No participants</span>;
+                          }
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setViewMembersMeeting(m)}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 text-xs font-semibold transition-all active:scale-95 shadow-2xs"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>View Members ({totalParticipants})</span>
+                            </button>
+                          );
+                        })()}
                       </td>
 
                       <td className="px-6 py-4 text-xs font-medium text-slate-700 dark:text-slate-300">
@@ -404,34 +421,34 @@ export const MeetingsPage: React.FC = () => {
                             </button>
                           )}
 
-                          {m.status === 'SCHEDULED' && (
-                            <button
-                              onClick={() => handleStatusChange(m._id, 'IN_PROGRESS')}
-                              title="Start Call"
-                              className="p-2 bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/60 rounded-xl transition-all active:scale-95 border border-sky-200/60 dark:border-sky-800/60 shadow-2xs"
-                            >
-                              <PlayCircle className="w-4 h-4" />
-                            </button>
+                          {m.status === 'COMPLETED' ? (
+                            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-semibold whitespace-nowrap">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Meeting Completed</span>
+                            </span>
+                          ) : m.status === 'CANCELLED' ? (
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/60 text-xs font-semibold whitespace-nowrap">
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Cancelled</span>
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleStatusChange(m._id, 'COMPLETED')}
+                                title="Mark Completed"
+                                className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl transition-all active:scale-95 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => openRescheduleModal(m)}
+                                title="Reschedule Meeting"
+                                className="p-2 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl transition-all active:scale-95 border border-amber-200/60 dark:border-amber-800/60 shadow-2xs flex items-center space-x-1"
+                              >
+                                <CalendarClock className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
-
-                          {m.status !== 'COMPLETED' && m.status !== 'CANCELLED' && (
-                            <button
-                              onClick={() => handleStatusChange(m._id, 'COMPLETED')}
-                              title="Mark Completed"
-                              className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl transition-all active:scale-95 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Reschedule Button replaces Cancel Button */}
-                          <button
-                            onClick={() => openRescheduleModal(m)}
-                            title="Reschedule Meeting"
-                            className="p-2 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl transition-all active:scale-95 border border-amber-200/60 dark:border-amber-800/60 shadow-2xs flex items-center space-x-1"
-                          >
-                            <CalendarClock className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -658,13 +675,14 @@ export const MeetingsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Meeting URL (Optional)
+                    Meeting URL *
                   </label>
                   <input
                     type="url"
+                    required
                     value={meetingLink}
                     onChange={(e) => setMeetingLink(e.target.value)}
-                    placeholder="https://meet.google.com/xyz-abc (auto-generated if empty)"
+                    placeholder="https://meet.google.com/xyz-abc-def"
                     className="w-full text-xs p-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-[11px]"
                   />
                 </div>
@@ -802,7 +820,7 @@ export const MeetingsPage: React.FC = () => {
                 {/* Meeting Link */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Video Meeting URL (Optional)
+                    Video Meeting URL
                   </label>
                   <input
                     type="url"
@@ -845,6 +863,115 @@ export const MeetingsPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* View Members Modal */}
+      <AnimatePresence>
+        {viewMembersMeeting && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewMembersMeeting(null)}
+              className="fixed inset-0 bg-slate-950 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+              className="relative z-50 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden"
+            >
+              <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                      Meeting Participants
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                      {viewMembersMeeting.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewMembersMeeting(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-2.5 flex-1">
+                {viewMembersMeeting.participantMemberIds?.map((p: any, idx: number) => (
+                  <div
+                    key={p._id || idx}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {p.name || 'Member'}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          {p.email} {p.phone ? `• ${p.phone}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    {p.primaryCategory && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0 ml-2">
+                        {p.primaryCategory}
+                      </span>
+                    )}
+                  </div>
+                ))}
+
+                {viewMembersMeeting.externalParticipants?.map((e: any, idx: number) => (
+                  <div
+                    key={`ext-${idx}`}
+                    className="flex items-center justify-between p-3 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/50"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center justify-center shrink-0">
+                        {(viewMembersMeeting.participantMemberIds?.length || 0) + idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {e.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          {e.email} {e.phone ? `• ${e.phone}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    {e.roleOrCompany && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 shrink-0 ml-2">
+                        {e.roleOrCompany}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewMembersMeeting(null)}
+                  className="px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-xs font-bold transition-all active:scale-95"
+                >
+                  Close
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
