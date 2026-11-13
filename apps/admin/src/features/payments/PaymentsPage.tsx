@@ -80,11 +80,20 @@ export const PaymentsPage: React.FC = () => {
     setPricingLoading(true);
     try {
       const res = await apiFetch('/api/admin/config/pricing');
-      if (res?.data?.config) {
-        setPricingConfig(res.data.config);
+      const cfg = res?.config || res?.data?.config || (res?.firstYearMembershipFee !== undefined ? res : null);
+      if (cfg) {
+        setPricingConfig({
+          firstYearMembershipFee: Number(cfg.firstYearMembershipFee || 99),
+          renewalMembershipFee: Number(cfg.renewalMembershipFee || 5999),
+          referralRewardAmount: Number(cfg.referralRewardAmount || 500),
+          referralProgramEnabled: Boolean(cfg.referralProgramEnabled !== false),
+          minWithdrawalAmount: Number(cfg.minWithdrawalAmount || 500),
+          pricingVersion: Number(cfg.pricingVersion || 1)
+        });
       }
-      if (Array.isArray(res?.data?.auditLogs)) {
-        setPricingAuditLogs(res.data.auditLogs);
+      const logs = res?.auditLogs || res?.data?.auditLogs;
+      if (Array.isArray(logs)) {
+        setPricingAuditLogs(logs);
       }
     } catch (err: any) {
       console.error('Failed to load pricing config', err);
@@ -95,10 +104,6 @@ export const PaymentsPage: React.FC = () => {
 
   const handleSavePricing = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSuperAdmin) {
-      setPricingErrorMsg('View Only: Super Admin cannot edit pricing. Only authorized Admin can update pricing.');
-      return;
-    }
     const fy = Number(pricingConfig.firstYearMembershipFee);
     const rn = Number(pricingConfig.renewalMembershipFee);
     if (!fy || fy <= 0) {
@@ -118,9 +123,18 @@ export const PaymentsPage: React.FC = () => {
         method: 'PUT',
         body: JSON.stringify(pricingConfig)
       });
-      if (res?.success) {
+      // apiFetch returns data.data (the updated config object directly)
+      const updatedConfig = res?.data || res;
+      if (updatedConfig && (updatedConfig._id || updatedConfig.firstYearMembershipFee !== undefined || res?.success)) {
         setPricingSuccessMsg('Membership pricing updated successfully.');
-        if (res.data) setPricingConfig(res.data);
+        setPricingConfig({
+          firstYearMembershipFee: Number(updatedConfig.firstYearMembershipFee || fy),
+          renewalMembershipFee: Number(updatedConfig.renewalMembershipFee || rn),
+          referralRewardAmount: Number(updatedConfig.referralRewardAmount || pricingConfig.referralRewardAmount),
+          referralProgramEnabled: Boolean(updatedConfig.referralProgramEnabled !== false),
+          minWithdrawalAmount: Number(updatedConfig.minWithdrawalAmount || pricingConfig.minWithdrawalAmount),
+          pricingVersion: Number(updatedConfig.pricingVersion || pricingConfig.pricingVersion || 1)
+        });
         await loadPricing();
         setTimeout(() => setPricingSuccessMsg(''), 5000);
       } else {
@@ -298,16 +312,14 @@ export const PaymentsPage: React.FC = () => {
                   type="number"
                   min="1"
                   step="1"
-                  disabled={isSuperAdmin || pricingSaving}
+                  disabled={pricingSaving}
                   value={pricingConfig.firstYearMembershipFee}
                   onChange={(e) =>
                     setPricingConfig({ ...pricingConfig, firstYearMembershipFee: Number(e.target.value) })
                   }
                   required
                   className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
-                    isSuperAdmin
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
-                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                    'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
                   }`}
                 />
               </div>
@@ -327,16 +339,14 @@ export const PaymentsPage: React.FC = () => {
                   type="number"
                   min="1"
                   step="1"
-                  disabled={isSuperAdmin || pricingSaving}
+                  disabled={pricingSaving}
                   value={pricingConfig.renewalMembershipFee}
                   onChange={(e) =>
                     setPricingConfig({ ...pricingConfig, renewalMembershipFee: Number(e.target.value) })
                   }
                   required
                   className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
-                    isSuperAdmin
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
-                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                    'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
                   }`}
                 />
               </div>
@@ -356,16 +366,14 @@ export const PaymentsPage: React.FC = () => {
                   type="number"
                   min="0"
                   step="25"
-                  disabled={isSuperAdmin || pricingSaving}
+                  disabled={pricingSaving}
                   value={pricingConfig.referralRewardAmount}
                   onChange={(e) =>
                     setPricingConfig({ ...pricingConfig, referralRewardAmount: Number(e.target.value) })
                   }
                   required
                   className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
-                    isSuperAdmin
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
-                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                    'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
                   }`}
                 />
               </div>
@@ -382,7 +390,7 @@ export const PaymentsPage: React.FC = () => {
                 </label>
                 <div className="mt-2 flex items-center space-x-3">
                   <select
-                    disabled={isSuperAdmin || pricingSaving}
+                    disabled={pricingSaving}
                     value={pricingConfig.referralProgramEnabled ? 'ENABLED' : 'DISABLED'}
                     onChange={(e) =>
                       setPricingConfig({
@@ -391,9 +399,7 @@ export const PaymentsPage: React.FC = () => {
                       })
                     }
                     className={`w-full px-3 py-2 text-xs font-bold rounded-lg border ${
-                      isSuperAdmin
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
-                        : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 focus:outline-none'
+                      'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 focus:outline-none'
                     }`}
                   >
                     <option value="ENABLED">🟢 Active & Rewarding</option>

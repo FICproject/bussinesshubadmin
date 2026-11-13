@@ -36,7 +36,10 @@ export const ServicesModerationPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await apiFetch(`/api/admin/services?status=${filterStatus}`);
-      setListings(data);
+      const nonDeleted = (Array.isArray(data) ? data : []).filter(
+        (item: any) => item.status !== 'DELETED' && item.status !== 'ARCHIVED'
+      );
+      setListings(nonDeleted);
     } catch (err) {
       console.error('Failed to load listings', err);
     } finally {
