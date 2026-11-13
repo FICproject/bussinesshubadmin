@@ -272,6 +272,27 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                     </div>
                   </div>
 
+                  {/* Registration Source & Referral Attribution */}
+                  <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div>
+                      <span className="font-bold text-purple-900 dark:text-purple-300 block">
+                        Registration Source: {member?.referralInfo?.source === 'REFERRAL' ? 'Referral' : 'Direct Registration'}
+                      </span>
+                      {member?.referralInfo?.source === 'REFERRAL' ? (
+                        <span className="text-[11px] text-purple-700 dark:text-purple-400 font-mono">
+                          Referred By: <strong className="font-semibold">{member.referralInfo.referredByName || 'Referrer'}</strong> • Referral Code: <strong className="font-semibold">{member.referralInfo.referralCode}</strong>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Organic registration directly via FIC Business Hub
+                        </span>
+                      )}
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200 uppercase font-mono">
+                      {member?.referralInfo?.source === 'REFERRAL' ? 'REFERRED' : 'DIRECT'}
+                    </span>
+                  </div>
+
                   {/* Selected Subcategories */}
                   {member?.subcategories && member.subcategories.length > 0 && (
                     <div>
