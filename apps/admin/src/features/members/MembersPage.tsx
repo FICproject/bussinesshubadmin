@@ -41,7 +41,8 @@ export const MembersPage: React.FC = () => {
       let url = `/api/admin/members?status=${statusFilter}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       const data = await apiFetch(url);
-      setMembers(data);
+      const approvedOnly = Array.isArray(data) ? data.filter((m: any) => m.kycStatus === 'APPROVED') : [];
+      setMembers(approvedOnly);
     } catch (err) {
       console.error('Failed to load members', err);
     } finally {
@@ -160,10 +161,8 @@ export const MembersPage: React.FC = () => {
           }}
             className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
-            <option value="ALL">All Statuses</option>
+            <option value="ALL">All Approved Members</option>
             <option value="ACTIVE">Active</option>
-            <option value="UNDER_REVIEW">Under Review</option>
-            <option value="PENDING_KYC">Pending KYC</option>
             <option value="SUSPENDED">Suspended</option>
             <option value="BLOCKED">Blocked</option>
           </select>
