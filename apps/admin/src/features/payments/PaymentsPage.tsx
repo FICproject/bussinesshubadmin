@@ -9,11 +9,18 @@ import {
   X,
   ExternalLink,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  IndianRupee,
+  Save,
+  Lock,
+  History,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../services/api';
 import { SkeletonTable } from '../../components/Skeleton';
+import { useAuth } from '../../context/AuthContext';
 
 interface PaginationMeta {
   page: number;
@@ -45,6 +52,86 @@ export const PaymentsPage: React.FC = () => {
   const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
   const requestSeqRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+  // Pricing configuration state
+  const [pricingConfig, setPricingConfig] = useState({
+    firstYearMembershipFee: 99,
+    renewalMembershipFee: 5999,
+    referralRewardAmount: 500,
+    referralProgramEnabled: true,
+    minWithdrawalAmount: 500,
+    pricingVersion: 1
+  });
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingSuccessMsg, setPricingSuccessMsg] = useState('');
+  const [pricingErrorMsg, setPricingErrorMsg] = useState('');
+  const [pricingAuditLogs, setPricingAuditLogs] = useState<any[]>([]);
+  const [showPricingLogsModal, setShowPricingLogsModal] = useState(false);
+
+  useEffect(() => {
+    loadPricing();
+  }, []);
+
+  const loadPricing = async () => {
+    setPricingLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/config/pricing');
+      if (res?.data?.config) {
+        setPricingConfig(res.data.config);
+      }
+      if (Array.isArray(res?.data?.auditLogs)) {
+        setPricingAuditLogs(res.data.auditLogs);
+      }
+    } catch (err: any) {
+      console.error('Failed to load pricing config', err);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleSavePricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSuperAdmin) {
+      setPricingErrorMsg('View Only: Super Admin cannot edit pricing. Only authorized Admin can update pricing.');
+      return;
+    }
+    const fy = Number(pricingConfig.firstYearMembershipFee);
+    const rn = Number(pricingConfig.renewalMembershipFee);
+    if (!fy || fy <= 0) {
+      setPricingErrorMsg('First Year Membership amount must be a positive number greater than 0.');
+      return;
+    }
+    if (!rn || rn <= 0) {
+      setPricingErrorMsg('Renewal Membership amount must be a positive number greater than 0.');
+      return;
+    }
+
+    setPricingSaving(true);
+    setPricingSuccessMsg('');
+    setPricingErrorMsg('');
+    try {
+      const res = await apiFetch('/api/admin/config/pricing', {
+        method: 'PUT',
+        body: JSON.stringify(pricingConfig)
+      });
+      if (res?.success) {
+        setPricingSuccessMsg('Membership pricing updated successfully.');
+        if (res.data) setPricingConfig(res.data);
+        await loadPricing();
+        setTimeout(() => setPricingSuccessMsg(''), 5000);
+      } else {
+        setPricingErrorMsg(res?.error || 'Failed to update pricing configuration');
+      }
+    } catch (err: any) {
+      setPricingErrorMsg(err.message || 'Failed to update pricing configuration');
+    } finally {
+      setPricingSaving(false);
+    }
+  };
 
   // Debounce live search and reset to first page when search changes
   useEffect(() => {
@@ -133,10 +220,301 @@ export const PaymentsPage: React.FC = () => {
             <span>Payments & Subscriptions</span>
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Audit Razorpay Test Mode orders, ₹99 intro fees, ₹5,999 renewals, wallet top-ups, HMAC signatures, and webhook confirmations.
+            Audit Razorpay Test Mode orders, dynamic membership fees, renewals, wallet top-ups, HMAC signatures, and webhook confirmations.
           </p>
         </div>
       </div>
+
+      {/* Dynamic Membership Pricing & Referral Reward Configuration Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-2xs">
+              <IndianRupee className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                <span>Dynamic Membership Pricing & Referral Configuration</span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[11px] font-mono font-medium">
+                  v{pricingConfig.pricingVersion || 1}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Authoritative platform pricing stored in MongoDB. Updates apply instantly to new registrations and renewals.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isSuperAdmin ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-mono">
+                <Lock className="w-3.5 h-3.5" />
+                View Only: Only authorized Admin can update pricing.
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-mono">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Admin Write Mode
+              </span>
+            )}
+
+            {pricingAuditLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowPricingLogsModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <History className="w-3.5 h-3.5 text-slate-500" />
+                <span>Audit Logs ({pricingAuditLogs.length})</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {pricingSuccessMsg && (
+          <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{pricingSuccessMsg}</span>
+          </div>
+        )}
+
+        {pricingErrorMsg && (
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{pricingErrorMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSavePricing} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Field A: First Year Membership Fee */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                1st Year Membership Fee *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  disabled={isSuperAdmin || pricingSaving}
+                  value={pricingConfig.firstYearMembershipFee}
+                  onChange={(e) =>
+                    setPricingConfig({ ...pricingConfig, firstYearMembershipFee: Number(e.target.value) })
+                  }
+                  required
+                  className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
+                    isSuperAdmin
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                  }`}
+                />
+              </div>
+              <span className="text-[10.5px] text-slate-400 block font-sans">
+                Default: ₹99. Charged during registration checkout.
+              </span>
+            </div>
+
+            {/* Field B: Second Year Onwards Renewal Fee */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                Year 2+ Renewal Fee *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  disabled={isSuperAdmin || pricingSaving}
+                  value={pricingConfig.renewalMembershipFee}
+                  onChange={(e) =>
+                    setPricingConfig({ ...pricingConfig, renewalMembershipFee: Number(e.target.value) })
+                  }
+                  required
+                  className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
+                    isSuperAdmin
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                  }`}
+                />
+              </div>
+              <span className="text-[10.5px] text-slate-400 block font-sans">
+                Default: ₹5,999. Deducted for wallet or gateway renewals.
+              </span>
+            </div>
+
+            {/* Field C: Referral Reward Amount */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                Referral Reward (per Member) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="25"
+                  disabled={isSuperAdmin || pricingSaving}
+                  value={pricingConfig.referralRewardAmount}
+                  onChange={(e) =>
+                    setPricingConfig({ ...pricingConfig, referralRewardAmount: Number(e.target.value) })
+                  }
+                  required
+                  className={`w-full pl-8 pr-3 py-2 text-sm font-black rounded-lg border text-slate-900 dark:text-slate-100 ${
+                    isSuperAdmin
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none'
+                  }`}
+                />
+              </div>
+              <span className="text-[10.5px] text-slate-400 block font-sans">
+                Default: ₹500. Credited upon Admin reward approval.
+              </span>
+            </div>
+
+            {/* Field D: Referral Programme Active Toggle */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5 flex flex-col justify-between">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                  Referral Programme Status
+                </label>
+                <div className="mt-2 flex items-center space-x-3">
+                  <select
+                    disabled={isSuperAdmin || pricingSaving}
+                    value={pricingConfig.referralProgramEnabled ? 'ENABLED' : 'DISABLED'}
+                    onChange={(e) =>
+                      setPricingConfig({
+                        ...pricingConfig,
+                        referralProgramEnabled: e.target.value === 'ENABLED'
+                      })
+                    }
+                    className={`w-full px-3 py-2 text-xs font-bold rounded-lg border ${
+                      isSuperAdmin
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed'
+                        : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 focus:outline-none'
+                    }`}
+                  >
+                    <option value="ENABLED">🟢 Active & Rewarding</option>
+                    <option value="DISABLED">🔴 Paused / Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <span className="text-[10.5px] text-slate-400 block font-sans">
+                Controls referral rewards across all member profiles.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              <strong>Audit Safety Guarantee:</strong> Price updates do not alter past transactions, receipts, or historical ledger entries. Only future registrations and renewals will use updated values.
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isSuperAdmin ? (
+                <button
+                  type="button"
+                  disabled
+                  className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-xs font-bold cursor-not-allowed flex items-center gap-2 border border-slate-300 dark:border-slate-700"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Save Disabled (Super Admin View Only)</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={pricingSaving}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{pricingSaving ? 'Saving Configuration...' : 'Save Pricing Configuration'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* Pricing Audit Logs Modal */}
+      {showPricingLogsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                  Membership Pricing Audit Trail
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPricingLogsModal(false)}
+                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {pricingAuditLogs.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6 font-mono">
+                  No pricing changes recorded yet. Initial defaults are active.
+                </p>
+              ) : (
+                pricingAuditLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        {log.adminName || 'Admin'} ({log.adminRole || 'ADMIN'})
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString('en-IN') : 'Recently'}
+                      </span>
+                    </div>
+                    {log.details && (
+                      <div className="text-[11px] font-mono text-slate-600 dark:text-slate-300 grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px]">1st Year Fee:</span>
+                          <span>
+                            ₹{log.details.previous?.firstYearMembershipFee ?? '99'} &rarr;{' '}
+                            <strong className="text-emerald-600 dark:text-emerald-400">
+                              ₹{log.details.updated?.firstYearMembershipFee}
+                            </strong>
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9.5px]">Renewal Fee:</span>
+                          <span>
+                            ₹{log.details.previous?.renewalMembershipFee ?? '5999'} &rarr;{' '}
+                            <strong className="text-emerald-600 dark:text-emerald-400">
+                              ₹{log.details.updated?.renewalMembershipFee}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setShowPricingLogsModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">

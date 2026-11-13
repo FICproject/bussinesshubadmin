@@ -658,11 +658,23 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                           <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300 font-mono">
                             Primary Settlement Account
                           </span>
-                          <h4 className="text-sm font-bold text-white mt-0.5">{bankDetails?.bankName || 'HDFC Bank'}</h4>
+                          <h4 className="text-sm font-bold text-white mt-0.5">
+                            {bankDetails?.bankName && bankDetails.bankName !== 'No Bank Linked'
+                              ? bankDetails.bankName
+                              : 'No Verified Bank Account Linked'}
+                          </h4>
                         </div>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                        {bankDetails?.verificationStatus || 'VERIFIED'}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
+                          bankDetails?.verificationStatus === 'VERIFIED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                            : bankDetails?.verificationStatus === 'VERIFICATION_PENDING'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
+                            : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                        }`}
+                      >
+                        {bankDetails?.verificationStatus || 'NOT_ADDED'}
                       </span>
                     </div>
 
@@ -670,7 +682,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                       <div>
                         <span className="text-[10px] text-slate-400 block font-sans">Account Number</span>
                         <p className="text-sm font-bold text-white tracking-wider mt-0.5">
-                          {bankDetails?.accountNumber || '••••••••••••'}
+                          {bankDetails?.accountNumberMasked || bankDetails?.accountNumber || 'Not Linked'}
                         </p>
                       </div>
                       <div>
