@@ -517,13 +517,22 @@ export const KycVerificationPage: React.FC = () => {
 
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center space-x-2.5 flex-wrap">
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-[var(--accent-primary)] transition-colors truncate">
-                      {sub.memberName}
-                    </h3>
-                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                      {sub.categoryName}
-                    </span>
-                  </div>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-[var(--accent-primary)] transition-colors truncate">
+                        {sub.memberName}
+                      </h3>
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        {sub.categoryName}
+                      </span>
+                      {sub.referralInfo?.source === 'REFERRAL' ? (
+                        <span className="text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <span>🎁 Ref by: {sub.referralInfo.referredByName || sub.referralInfo.referralCode || 'Referrer'}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                          Direct
+                        </span>
+                      )}
+                    </div>
 
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {sub.memberEmail}
@@ -595,6 +604,21 @@ export const KycVerificationPage: React.FC = () => {
                     {sub.categoryName}
                   </div>
                 </div>
+                {sub.referralInfo?.source === 'REFERRAL' && (
+                  <div className="mt-2 p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/50 text-xs">
+                    <div className="text-[10px] text-purple-600 dark:text-purple-300 uppercase font-mono font-bold">
+                      Referred By
+                    </div>
+                    <div className="font-semibold text-purple-900 dark:text-purple-200 mt-0.5 truncate text-[11px]">
+                      {sub.referralInfo.referredByName || sub.referralInfo.referralCode}
+                      {sub.referralInfo.referralCode && (
+                        <span className="ml-1 text-[10px] text-purple-600 dark:text-purple-400 font-mono font-normal">
+                          ({sub.referralInfo.referralCode})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
@@ -720,6 +744,12 @@ export const KycVerificationPage: React.FC = () => {
                       {selectedSubmission.referralInfo?.source === 'REFERRAL' ? (
                         <span className="text-[11px] text-purple-700 dark:text-purple-400 font-mono">
                           Referred By: <strong className="font-semibold">{selectedSubmission.referralInfo.referredByName || 'Member Referrer'}</strong> • Referral Code: <strong className="font-semibold">{selectedSubmission.referralInfo.referralCode}</strong>
+                          {selectedSubmission.referralInfo.referrerPhone && (
+                            <span> • Phone: {selectedSubmission.referralInfo.referrerPhone}</span>
+                          )}
+                          {selectedSubmission.referralInfo.referrerEmail && (
+                            <span> • Email: {selectedSubmission.referralInfo.referrerEmail}</span>
+                          )}
                         </span>
                       ) : (
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">
