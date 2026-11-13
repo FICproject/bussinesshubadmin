@@ -128,7 +128,7 @@ export const MembersPage: React.FC = () => {
             <span>Members Directory</span>
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track enrolled members, membership fees (₹99 intro), KYC compliance, and account privileges.
+            Track enrolled members, membership fees, KYC compliance, and account privileges.
           </p>
         </div>
 

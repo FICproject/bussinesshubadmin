@@ -66,7 +66,7 @@ export const FinancialSnapshotCard: React.FC<FinancialSnapshotProps> = ({ data }
         <div className="flex items-center justify-between mt-2.5">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-100/60 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-300/40 dark:border-indigo-700/40 w-fit">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            ₹99 Intro + ₹5,999 Renewals
+            Dynamic Membership & Renewals
           </span>
           <span className="text-[10px] font-mono text-indigo-700 dark:text-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity">
             View ledger &rarr;

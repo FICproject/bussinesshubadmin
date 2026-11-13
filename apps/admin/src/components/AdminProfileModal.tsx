@@ -165,8 +165,9 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({
         body: JSON.stringify(payload),
       });
 
-      if (res.user) {
-        updateUser(res.user);
+      const updatedUser = res?.user || (res?.id ? res : null);
+      if (updatedUser) {
+        updateUser(updatedUser);
       }
       setSuccessMsg('Profile updated successfully!');
       setCurrentPassword('');
