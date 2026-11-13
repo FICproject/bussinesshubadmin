@@ -66,7 +66,7 @@ export const DashboardPage: React.FC = () => {
       cardGradient: 'bg-gradient-to-br from-amber-50/60 via-white to-amber-50/20 dark:from-[#211604] dark:via-[#19150f] dark:to-[#141F33] border-amber-200/70 dark:border-amber-500/30',
       iconBox: 'bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 border border-amber-300/60 dark:border-amber-700/50',
       description: 'Awaiting compliance check',
-      path: '/kyc',
+      path: '/kyc?status=SUBMITTED',
     },
     {
       title: 'Service Listings in Queue',
@@ -75,7 +75,7 @@ export const DashboardPage: React.FC = () => {
       cardGradient: 'bg-gradient-to-br from-sky-50/60 via-white to-sky-50/20 dark:from-[#081d2c] dark:via-[#0e1e2d] dark:to-[#141F33] border-sky-200/70 dark:border-sky-500/30',
       iconBox: 'bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 border border-sky-300/60 dark:border-sky-700/50',
       description: 'Moderate provider details',
-      path: '/services',
+      path: '/services?status=PENDING_APPROVAL',
     },
     {
       title: 'Active FIC Requests',
@@ -84,7 +84,7 @@ export const DashboardPage: React.FC = () => {
       cardGradient: 'bg-gradient-to-br from-violet-50/60 via-white to-purple-50/20 dark:from-[#1b1035] dark:via-[#19150b] dark:to-[#141F33] border-violet-200/70 dark:border-violet-500/30',
       iconBox: 'bg-violet-100 dark:bg-violet-950/70 text-violet-600 dark:text-violet-400 border border-violet-300/60 dark:border-violet-700/50',
       description: 'Intermediary leads & inquiries',
-      path: '/requests',
+      path: '/requests?status=ACTIVE',
     },
     {
       title: 'Total Enrolled Members',
@@ -94,7 +94,7 @@ export const DashboardPage: React.FC = () => {
       cardGradient: 'bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/20 dark:from-[#062419] dark:via-[#0d221c] dark:to-[#141F33] border-emerald-200/70 dark:border-emerald-500/30',
       iconBox: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-300/60 dark:border-emerald-700/50',
       description: 'Active vs Registered Total',
-      path: '/members',
+      path: '/members?status=ALL',
     },
   ];
 

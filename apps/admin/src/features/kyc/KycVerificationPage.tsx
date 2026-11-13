@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -35,7 +36,20 @@ export const KycVerificationPage: React.FC = () => {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const s = searchParams.get('status');
+    return s ? s.toUpperCase() : 'ALL';
+  });
+
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s && s.toUpperCase() !== filterStatus) {
+      setFilterStatus(s.toUpperCase());
+    } else if (!s && filterStatus !== 'ALL') {
+      setFilterStatus('ALL');
+    }
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
@@ -387,7 +401,16 @@ export const KycVerificationPage: React.FC = () => {
             return (
               <button
                 key={tab.value}
-                onClick={() => setFilterStatus(tab.value)}
+                onClick={() => {
+                  setFilterStatus(tab.value);
+                  const newParams = new URLSearchParams(searchParams);
+                  if (tab.value === 'ALL') {
+                    newParams.delete('status');
+                  } else {
+                    newParams.set('status', tab.value);
+                  }
+                  setSearchParams(newParams, { replace: true });
+                }}
                 className={`relative px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors z-10 whitespace-nowrap ${
                   isActive
                     ? 'text-white'

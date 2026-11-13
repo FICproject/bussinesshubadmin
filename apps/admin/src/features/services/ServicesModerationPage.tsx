@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Briefcase, CheckCircle2, XCircle, Eye, Search, X, LayoutGrid, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
@@ -9,7 +10,20 @@ import { useDialog } from '../../context/DialogContext';
 export const ServicesModerationPage: React.FC = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const s = searchParams.get('status');
+    return s ? s.toUpperCase() : 'ALL';
+  });
+
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s && s.toUpperCase() !== filterStatus) {
+      setFilterStatus(s.toUpperCase());
+    } else if (!s && filterStatus !== 'ALL') {
+      setFilterStatus('ALL');
+    }
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { showAlert, showPrompt } = useDialog();
@@ -88,7 +102,17 @@ export const ServicesModerationPage: React.FC = () => {
 
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setFilterStatus(next);
+            const newParams = new URLSearchParams(searchParams);
+            if (next === 'ALL') {
+              newParams.delete('status');
+            } else {
+              newParams.set('status', next);
+            }
+            setSearchParams(newParams, { replace: true });
+          }}
           className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-medium"
         >
           <option value="ALL">All Statuses</option>

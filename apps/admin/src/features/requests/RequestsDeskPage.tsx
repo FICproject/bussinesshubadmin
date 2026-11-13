@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   GitPullRequest,
   Search,
@@ -38,7 +39,20 @@ export const RequestsDeskPage: React.FC = () => {
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const s = searchParams.get('status');
+    return s ? s.toUpperCase() : 'ALL';
+  });
+
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s && s.toUpperCase() !== statusFilter) {
+      setStatusFilter(s.toUpperCase());
+    } else if (!s && statusFilter !== 'ALL') {
+      setStatusFilter('ALL');
+    }
+  }, [searchParams]);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [memberResponseInput, setMemberResponseInput] = useState('');
   const [responseStatus, setResponseStatus] = useState('RESPONDED');
@@ -419,10 +433,21 @@ export const RequestsDeskPage: React.FC = () => {
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setStatusFilter(next);
+            const newParams = new URLSearchParams(searchParams);
+            if (next === 'ALL') {
+              newParams.delete('status');
+            } else {
+              newParams.set('status', next);
+            }
+            setSearchParams(newParams, { replace: true });
+          }}
           className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] shadow-2xs font-medium"
         >
           <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active Requests (Pending Action)</option>
           <option value="NEW">New Requests</option>
           <option value="UNDER_REVIEW">Under Review</option>
           <option value="ASSIGNED">Assigned</option>

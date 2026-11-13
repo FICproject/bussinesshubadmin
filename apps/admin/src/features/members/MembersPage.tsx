@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Users, Search, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
@@ -11,7 +12,20 @@ export const MembersPage: React.FC = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const s = searchParams.get('status');
+    return s ? s.toUpperCase() : 'ALL';
+  });
+
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s && s.toUpperCase() !== statusFilter) {
+      setStatusFilter(s.toUpperCase());
+    } else if (!s && statusFilter !== 'ALL') {
+      setStatusFilter('ALL');
+    }
+  }, [searchParams]);
 
   // Member Detail Modal
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -119,7 +133,17 @@ export const MembersPage: React.FC = () => {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+            const next = e.target.value;
+            setStatusFilter(next);
+            const newParams = new URLSearchParams(searchParams);
+            if (next === 'ALL') {
+              newParams.delete('status');
+            } else {
+              newParams.set('status', next);
+            }
+            setSearchParams(newParams, { replace: true });
+          }}
             className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
             <option value="ALL">All Statuses</option>
