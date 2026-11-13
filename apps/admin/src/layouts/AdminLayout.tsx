@@ -75,7 +75,7 @@ export const AdminLayout: React.FC = () => {
 
     // 4. Commercials & Capital Desk
     { name: 'Payments & Fees', path: '/payments', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },
-    { name: 'FIC Funding Desk', path: '/funding', icon: Coins, show: hasRole('SUPER_ADMIN') },
+    { name: 'FIC Funding Desk', path: '/funding', icon: Coins, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Referral Bonus', path: '/referrals', icon: Gift, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 5. Operations & Engagement
@@ -84,8 +84,8 @@ export const AdminLayout: React.FC = () => {
     { name: 'Support Helpdesk', path: '/support', icon: LifeBuoy, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 6. Administration & Governance
-    { name: 'Staff Management', path: '/staff', icon: UserCog, show: hasRole('SUPER_ADMIN') },
-    { name: 'Audit Logs', path: '/audit-logs', icon: History, show: hasRole('SUPER_ADMIN') },
+    { name: 'Staff Management', path: '/staff', icon: UserCog, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Audit Logs', path: '/audit-logs', icon: History, show: hasRole('SUPER_ADMIN', 'ADMIN') },
   ];
 
   return (

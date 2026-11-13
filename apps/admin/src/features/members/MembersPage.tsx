@@ -49,8 +49,22 @@ export const MembersPage: React.FC = () => {
     }
   };
 
-  const handleStatusToggle = async (memberId: string, currentStatus: string) => {
+  const handleStatusToggle = async (member: any) => {
+    const isEligible = member.kycStatus === 'APPROVED' && member.paymentStatus === 'PAID';
+    if (member.status !== 'ACTIVE' && !isEligible) {
+      await showAlert(
+        'Cannot grant Active Privilege. Member KYC must be approved in KYC Verification first before activating the account.',
+        {
+          title: 'KYC Approval Required',
+          severity: 'warning'
+        }
+      );
+      return;
+    }
+
+    const currentStatus = member.status;
     const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    const memberId = member._id;
     
     // Optimistic local update so toggle switch moves instantaneously without skeleton flash
     setMembers((prev) =>
@@ -227,41 +241,72 @@ export const MembersPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         {/* iOS-Style Smooth Physics Toggle Switch */}
-                        <div className="flex items-center space-x-2.5">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={m.status === 'ACTIVE'}
-                            onClick={() => handleStatusToggle(m._id, m.status)}
-                            className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full p-[2px] transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 shadow-inner ${
-                              m.status === 'ACTIVE'
-                                ? 'bg-[#34C759]' // Apple iOS Switch Active Green
-                                : 'bg-[#E9E9EB] dark:bg-[#39393D]' // Apple iOS Switch Inactive Off-Gray
-                            }`}
-                          >
-                            <motion.span
-                              animate={{
-                                x: m.status === 'ACTIVE' ? 20 : 0,
-                              }}
-                              transition={{
-                                type: 'spring',
-                                stiffness: 600,
-                                damping: 35,
-                                mass: 0.8,
-                              }}
-                              className="pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-[0_2px_4px_rgba(0,0,0,0.2),0_1px_1px_rgba(0,0,0,0.1)] ring-0 will-change-transform"
-                            />
-                          </button>
-                          <span
-                            className={`text-[11px] font-semibold transition-colors duration-200 ${
-                              m.status === 'ACTIVE'
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-slate-500 dark:text-slate-400'
-                            }`}
-                          >
-                            {m.status}
-                          </span>
-                        </div>
+                        {(() => {
+                          const isEligible = m.kycStatus === 'APPROVED' && m.paymentStatus === 'PAID';
+                          const isPrivilegeActive = m.status === 'ACTIVE' && isEligible;
+                          const displayLabel =
+                            m.status === 'SUSPENDED'
+                              ? 'SUSPENDED'
+                              : m.status === 'BLOCKED'
+                              ? 'BLOCKED'
+                              : isPrivilegeActive
+                              ? 'ACTIVE'
+                              : m.kycStatus === 'SUBMITTED'
+                              ? 'UNDER REVIEW'
+                              : m.kycStatus === 'RESUBMISSION_REQUESTED'
+                              ? 'RESUBMISSION'
+                              : 'PENDING KYC';
+
+                          return (
+                            <div className="flex items-center space-x-2.5">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isPrivilegeActive}
+                                onClick={() => handleStatusToggle(m)}
+                                disabled={!isEligible && m.status !== 'SUSPENDED' && m.status !== 'BLOCKED'}
+                                title={
+                                  !isEligible
+                                    ? 'Member KYC must be approved in KYC Verification before activating account'
+                                    : isPrivilegeActive
+                                    ? 'Click to suspend member'
+                                    : 'Click to activate member'
+                                }
+                                className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full p-[2px] transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 shadow-inner ${
+                                  !isEligible && m.status !== 'SUSPENDED' && m.status !== 'BLOCKED'
+                                    ? 'opacity-60 cursor-not-allowed bg-[#E9E9EB] dark:bg-[#2A2A2E]'
+                                    : isPrivilegeActive
+                                    ? 'bg-[#34C759]' // Apple iOS Switch Active Green
+                                    : 'bg-[#E9E9EB] dark:bg-[#39393D]' // Apple iOS Switch Inactive Off-Gray
+                                }`}
+                              >
+                                <motion.span
+                                  animate={{
+                                    x: isPrivilegeActive ? 20 : 0,
+                                  }}
+                                  transition={{
+                                    type: 'spring',
+                                    stiffness: 600,
+                                    damping: 35,
+                                    mass: 0.8,
+                                  }}
+                                  className="pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-[0_2px_4px_rgba(0,0,0,0.2),0_1px_1px_rgba(0,0,0,0.1)] ring-0 will-change-transform"
+                                />
+                              </button>
+                              <span
+                                className={`text-[11px] font-semibold transition-colors duration-200 ${
+                                  isPrivilegeActive
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : m.status === 'SUSPENDED' || m.status === 'BLOCKED'
+                                    ? 'text-rose-500 dark:text-rose-400'
+                                    : 'text-amber-600 dark:text-amber-400'
+                                }`}
+                              >
+                                {displayLabel}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         {/* View Action Button */}
