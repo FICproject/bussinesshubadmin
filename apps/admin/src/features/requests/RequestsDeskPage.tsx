@@ -27,6 +27,8 @@ import {
   Check,
   Briefcase,
   HelpCircle,
+  Lock,
+  Ban,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
@@ -147,22 +149,28 @@ export const RequestsDeskPage: React.FC = () => {
     }
   };
 
-  // 1.1 UNASSIGN / CHANGE PROVIDER
-  const handleUnassignProvider = async () => {
-    if (!selectedReq) return;
+  // 1.1 CANCEL / CLOSE REQUEST WITH REASON (IF PROVIDER UNAVAILABLE)
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReasonInput, setCancelReasonInput] = useState('');
+
+  const handleCancelRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReq || !cancelReasonInput.trim()) return;
     setIsUpdating(true);
     try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/unassign-provider`, {
-        method: 'PATCH',
+      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/cancel`, {
+        method: 'POST',
         body: JSON.stringify({
-          reason: 'Admin changed provider selection',
+          reason: cancelReasonInput.trim(),
         }),
       });
       setSelectedReq(res.data);
-      showSuccessBanner('Provider unassigned. You can now choose a new service provider.');
+      setCancelModalOpen(false);
+      setCancelReasonInput('');
+      showSuccessBanner('Request closed / cancelled with recorded reason.');
       loadRequests(selectedReq._id);
     } catch (err: any) {
-      alert(`Error clearing provider: ${err.message}`);
+      alert(`Error cancelling request: ${err.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -184,30 +192,6 @@ export const RequestsDeskPage: React.FC = () => {
       loadRequests(selectedReq._id);
     } catch (err: any) {
       alert(`Error notifying provider: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // 3. SIMULATE PROVIDER RESPONSE (Accept / Decline)
-  const handleProviderResponse = async (response: 'ACCEPTED' | 'DECLINED') => {
-    if (!selectedReq) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/provider-response`, {
-        method: 'POST',
-        body: JSON.stringify({ response }),
-      });
-      setSelectedReq(res.data);
-      if (response === 'ACCEPTED') {
-        showSuccessBanner(`Provider accepted! You can now book the introduction call.`);
-        setIsSchedulingMeeting(true);
-      } else {
-        showSuccessBanner(`Provider declined. Please pick another provider above.`);
-      }
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Error saving provider response: ${err.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -838,14 +822,20 @@ export const RequestsDeskPage: React.FC = () => {
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleUnassignProvider}
-                        disabled={isUpdating}
-                        className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold underline px-3 py-1.5 transition-colors disabled:opacity-50"
-                      >
-                        Change Provider
-                      </button>
+                      {selectedReq.status !== 'CANCELLED' && selectedReq.status !== 'COMPLETED' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancelReasonInput('');
+                            setCancelModalOpen(true);
+                          }}
+                          disabled={isUpdating}
+                          className="text-xs text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors disabled:opacity-50"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          <span>Close Request</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -936,117 +926,123 @@ export const RequestsDeskPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Action & Feedback Controls */}
-                      {selectedReq.providerResponse === 'ACCEPTED' ? (
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              <span>Provider accepted the request! Book your introduction call below.</span>
-                            </div>
-                            <span className="font-mono text-[10px] text-emerald-600/80">
-                              Accepted {selectedReq.providerResponseAt ? new Date(selectedReq.providerResponseAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Verified'}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={handleUnassignProvider}
-                              disabled={isUpdating}
-                              className="text-xs text-slate-500 hover:text-rose-600 font-semibold underline transition-colors"
-                            >
-                              Choose a different provider instead
-                            </button>
-                          </div>
+                      {/* Read-Only Provider Decision & Response Audit Section */}
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">
+                            Provider Response & Audit
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {selectedReq.providerRespondedAt || selectedReq.providerResponseAt ? (
+                              `Responded: ${new Date(selectedReq.providerRespondedAt || selectedReq.providerResponseAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
+                            ) : (
+                              'Waiting for provider decision'
+                            )}
+                          </span>
                         </div>
-                      ) : selectedReq.providerResponse === 'DECLINED' ? (
-                        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center space-x-2 text-rose-700 dark:text-rose-300 font-bold text-xs">
-                              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                              <span>Provider {selectedReq.targetProviderId.name} has DECLINED this project inquiry.</span>
+
+                        {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED' ? (
+                          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-200 font-bold text-xs">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Accepted by Provider: {selectedReq.targetProviderId?.name}</span>
+                              </div>
+                              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                                Decision: ACCEPTED
+                              </span>
                             </div>
-                            <span className="text-[10px] text-rose-500 font-mono">
-                              {selectedReq.providerResponseAt ? new Date(selectedReq.providerResponseAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Declined'}
-                            </span>
+
+                            {selectedReq.providerResponseMessage && (
+                              <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 text-xs text-slate-700 dark:text-slate-300">
+                                <span className="font-bold text-[10px] uppercase text-emerald-600 block mb-0.5">Provider Note / Clarification:</span>
+                                "{selectedReq.providerResponseMessage}"
+                              </div>
+                            )}
+
+                            <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                              Provider has confirmed readiness for this project requirement. You can now coordinate the introduction call in Step 3 below.
+                            </p>
                           </div>
+                        ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED' ? (
+                          <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center space-x-2 text-rose-800 dark:text-rose-200 font-bold text-xs">
+                                <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                                <span>Declined by Provider: {selectedReq.targetProviderId?.name}</span>
+                              </div>
+                              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-rose-100 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700">
+                                Decision: DECLINED
+                              </span>
+                            </div>
 
-                          <p className="text-xs text-rose-600/90 dark:text-rose-400">
-                            The provider is currently unavailable or unable to take on this scope. Please click below to select an alternate qualified service provider.
-                          </p>
+                            <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+                              <span className="font-bold text-[10px] uppercase text-rose-600 block mb-0.5">Stated Rejection Reason:</span>
+                              "{selectedReq.providerRejectionReason || selectedReq.providerResponseMessage || 'Provider is currently unavailable or unable to take on this scope.'}"
+                            </div>
 
-                          <div className="flex items-center space-x-3 pt-1">
-                            <button
-                              type="button"
-                              onClick={handleUnassignProvider}
-                              disabled={isUpdating}
-                              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center space-x-2 transition-all shadow-xs"
-                            >
-                              <ArrowRight className="w-3.5 h-3.5" />
-                              <span>Change & Select Alternate Provider</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={handleInformProvider}
-                              disabled={isUpdating}
-                              className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
-                            >
-                              Retry / Re-send to Same Provider
-                            </button>
+                            <p className="text-[11px] text-rose-600/90 dark:text-rose-400">
+                              The provider cannot take on this request. Please formulate an official response to the member below or close the request with a recorded reason.
+                            </p>
                           </div>
-                        </div>
-                      ) : (
+                        ) : (
+                          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-200 font-bold text-xs">
+                                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>{selectedReq.providerNotifiedAt ? 'Awaiting Provider Decision' : 'Project Info Not Dispatched Yet'}</span>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                                {selectedReq.providerNotifiedAt ? 'Status: AWAITING_RESPONSE' : 'Status: READY_TO_SEND'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                              {selectedReq.providerNotifiedAt
+                                ? `Project details were dispatched to provider ${selectedReq.targetProviderId?.name}. Admin cannot override provider decision — provider must accept or decline from their member portal.`
+                                : `Click below to share the anonymized requirements with ${selectedReq.targetProviderId?.name}.`}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Dispatch / Re-send Project Overview Button */}
                         <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
                           <button
                             type="button"
                             onClick={handleInformProvider}
                             disabled={isUpdating}
-                            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex items-center space-x-2 transition-all shadow-xs active:scale-95"
+                            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex items-center space-x-2 transition-all shadow-xs active:scale-95 disabled:opacity-50"
                           >
                             <Send className="w-3.5 h-3.5" />
                             <span>
-                              {selectedReq.providerNotifiedAt ? 'Re-send Project Info' : 'Send Project Info to Provider'}
+                              {selectedReq.providerNotifiedAt ? 'Re-send Project Info & Reminder' : 'Send Project Info to Provider'}
                             </span>
                           </button>
-
-                          {selectedReq.providerNotifiedAt ? (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-slate-500 dark:text-slate-400">Provider Decision:</span>
-                              <button
-                                type="button"
-                                onClick={() => handleProviderResponse('ACCEPTED')}
-                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors shadow-2xs"
-                              >
-                                Mark Accepted
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleProviderResponse('DECLINED')}
-                                className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700 transition-colors shadow-2xs"
-                              >
-                                Mark Declined
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={handleUnassignProvider}
-                              disabled={isUpdating}
-                              className="text-xs text-slate-400 hover:text-rose-500 font-semibold underline"
-                            >
-                              Select another provider
-                            </button>
-                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 3 & 4: SCHEDULE MEETING (IF ACCEPTED) */}
-                {selectedReq.targetProviderId && selectedReq.providerResponse === 'ACCEPTED' && (
+                {/* STEP 3 & 4: SCHEDULE MEETING (LOCKED UNTIL PROVIDER ACCEPTANCE) */}
+                {selectedReq.targetProviderId && !(selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && (
+                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5 opacity-60">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>3. Book Introduction Call</span>
+                      </h4>
+                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900">
+                        Locked Until Acceptance
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 flex items-center space-x-2.5 text-xs text-slate-500 dark:text-slate-400">
+                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Introduction meeting booking unlocks automatically once the service provider accepts the project.</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedReq.targetProviderId && (selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && (
                   <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
@@ -1304,11 +1300,12 @@ export const RequestsDeskPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Direct Response to Member */}
+                {/* Admin Response to Service Requestor */}
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase block font-mono">
-                      Direct Response to Member
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Admin Response to Service Requestor</span>
                     </span>
                     {selectedReq.adminRespondedAt && (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
@@ -1317,37 +1314,94 @@ export const RequestsDeskPage: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Provider Outcome Review Summary for Admin */}
+                  <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider">
+                        Provider Outcome Status:
+                      </span>
+                      {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED' ? (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                          Provider Accepted
+                        </span>
+                      ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED' ? (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                          Provider Declined
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                          Awaiting Provider Decision
+                        </span>
+                      )}
+                    </div>
+                    {(selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && selectedReq.providerResponseMessage && (
+                      <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                        <strong className="font-semibold">Provider message:</strong> "{selectedReq.providerResponseMessage}"
+                      </p>
+                    )}
+                    {(selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED') && (
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                        <strong className="font-semibold">Provider reason:</strong> "{selectedReq.providerRejectionReason || selectedReq.providerResponseMessage || 'Unavailable for this project scope'}"
+                      </p>
+                    )}
+                  </div>
+
                   {selectedReq.adminResponse && (
                     <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 rounded-xl text-xs text-purple-900 dark:text-purple-200 font-medium">
                       <span className="font-bold block text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">
-                        Active Response to Member:
+                        Active Response Sent to Requestor:
                       </span>
                       {selectedReq.adminResponse}
                     </div>
                   )}
 
+                  {/* Quick Template Fill Buttons */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Quick Templates:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberResponseInput("Good news! The service provider has accepted your request. FIC will now coordinate the next step and help arrange an introductory discussion.");
+                        setResponseStatus('ADMIN_RESPONSE_SENT');
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
+                    >
+                      + Provider Accepted
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberResponseInput("The selected service provider is currently unable to accept your request. FIC has received the provider's response and updated your request accordingly.");
+                        setResponseStatus('CANCELLED');
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors"
+                    >
+                      + Provider Unavailable
+                    </button>
+                  </div>
+
                   <form onSubmit={handleSendAdminResponse} className="space-y-2">
                     <textarea
                       value={memberResponseInput}
                       onChange={(e) => setMemberResponseInput(e.target.value)}
-                      placeholder="Write a clear response or status update directly to the member (visible in Member My Requests)..."
-                      rows={2}
+                      placeholder="Write the official response or next steps to the service requestor (visible in Member Website -> My Requests)..."
+                      rows={3}
                       className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
                     />
-                    <div className="flex justify-between items-center gap-2">
+                    <div className="flex justify-between items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <label className="text-[10px] font-semibold text-slate-500 uppercase">Set Status:</label>
                         <select
                           value={responseStatus}
                           onChange={(e) => setResponseStatus(e.target.value)}
-                          className="text-xs px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-medium"
+                          className="text-xs px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-medium"
                         >
-                          <option value="RESPONDED">Responded</option>
-                          <option value="UNDER_REVIEW">Under Review</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="INFORMATION_REQUIRED">Information Required</option>
+                          <option value="ADMIN_RESPONSE_SENT">FIC Response Sent</option>
+                          <option value="IN_PROGRESS">In Progress / Coordinating</option>
+                          <option value="MEETING_SCHEDULED">Meeting Scheduled</option>
                           <option value="COMPLETED">Completed</option>
-                          <option value="REJECTED">Rejected</option>
+                          <option value="CANCELLED">Cancelled / Closed</option>
+                          <option value="UNDER_REVIEW">Under Review</option>
                         </select>
                       </div>
                       <button
@@ -1412,6 +1466,71 @@ export const RequestsDeskPage: React.FC = () => {
                   Close Window
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CANCEL / CLOSE REQUEST MODAL */}
+      <AnimatePresence>
+        {cancelModalOpen && selectedReq && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center space-x-2 text-rose-600 dark:text-rose-400">
+                  <Ban className="w-5 h-5" />
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Close / Cancel Service Request</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Provide a recorded reason for closing or cancelling request <strong className="text-slate-800 dark:text-slate-200">"{selectedReq.title}"</strong>. This will be logged in the audit trail and communicated to the member.
+              </p>
+
+              <form onSubmit={handleCancelRequest} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    Cancellation Reason <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={cancelReasonInput}
+                    onChange={(e) => setCancelReasonInput(e.target.value)}
+                    placeholder="e.g., Assigned service provider is currently at full capacity and unable to take this engagement scope..."
+                    className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdating || !cancelReasonInput.trim()}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
+                  >
+                    Confirm Cancellation
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

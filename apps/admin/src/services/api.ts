@@ -70,7 +70,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
         window.location.href = '/login';
       }
     }
-    throw new Error(data.error || data.message || 'Request failed');
+    throw new Error(data.details || data.error || data.message || 'Request failed');
   }
 
   return data.data;
