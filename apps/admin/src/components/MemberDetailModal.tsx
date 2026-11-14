@@ -22,6 +22,7 @@ import {
   History,
   QrCode,
   Landmark,
+  TrendingUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
@@ -252,12 +253,96 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                         <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                         <span>Registered: {formatRegDate(member?.registeredAt)}</span>
                       </div>
+
+                      {/* Company / Registered Entity Name */}
+                      {(member?.companyName || member?.dynamicProfile?.businessName || member?.dynamicProfile?.companyName || member?.dynamicProfile?.institutionName) && (
+                        <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                          <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>
+                            Company / Entity:{' '}
+                            <strong className="font-semibold text-slate-900 dark:text-slate-100">
+                              {member.companyName || member.dynamicProfile?.businessName || member.dynamicProfile?.companyName || member.dynamicProfile?.institutionName}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Company Revenue / Annual Turnover */}
+                      {(member?.companyRevenue || member?.dynamicProfile?.annualTurnover || member?.dynamicProfile?.companyRevenue || member?.dynamicProfile?.revenue) && (
+                        <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                          <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>
+                            Company Revenue:{' '}
+                            <strong className="font-semibold text-emerald-700 dark:text-emerald-400">
+                              {member.companyRevenue || member.dynamicProfile?.annualTurnover || member.dynamicProfile?.companyRevenue || member.dynamicProfile?.revenue}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Operating Stage */}
+                      {(member?.businessStage || member?.dynamicProfile?.businessStage) && (
+                        <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                          <Briefcase className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>
+                            Stage:{' '}
+                            <strong className="font-medium">
+                              {member.businessStage || member.dynamicProfile?.businessStage}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Industry Sector */}
+                      {(member?.industrySector || member?.dynamicProfile?.industrySector) && (
+                        <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                          <Layers className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>
+                            Industry:{' '}
+                            <strong className="font-medium">
+                              {member.industrySector || member.dynamicProfile?.industrySector}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+
                       {member?.dob && (
                         <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
                           <Clock className="w-4 h-4 text-slate-400 shrink-0" />
                           <span>DOB: {member.dob}</span>
                         </div>
                       )}
+
+                      {/* Additional Category-Specific Registration Fields */}
+                      {member?.dynamicProfile &&
+                        Object.entries(member.dynamicProfile)
+                          .filter(([key, val]) => {
+                            if (!val || typeof val === 'object') return false;
+                            const lower = key.toLowerCase();
+                            return (
+                              !lower.includes('businessname') &&
+                              !lower.includes('companyname') &&
+                              !lower.includes('institutionname') &&
+                              !lower.includes('turnover') &&
+                              !lower.includes('revenue') &&
+                              !lower.includes('stage') &&
+                              !lower.includes('industrysector')
+                            );
+                          })
+                          .map(([key, val]: [string, any]) => {
+                            const formattedKey = key
+                              .replace(/([A-Z])/g, ' $1')
+                              .replace(/^./, (str) => str.toUpperCase());
+                            return (
+                              <div key={key} className="flex items-center space-x-2 text-slate-700 dark:text-slate-300">
+                                <Sparkles className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>
+                                  {formattedKey}: <strong className="font-medium">{String(val)}</strong>
+                                </span>
+                              </div>
+                            );
+                          })}
+
                       {member?.address && (
                         <div className="sm:col-span-2 flex items-start space-x-2 text-slate-700 dark:text-slate-300 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
                           <Building2 className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />

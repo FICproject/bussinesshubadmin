@@ -50,6 +50,32 @@ export const MembersPage: React.FC = () => {
     }
   };
 
+  // Real-time client-side search filtering across member name, email, phone, category, and company
+  const filteredMembers = React.useMemo(() => {
+    if (!search.trim()) return members;
+    const q = search.toLowerCase().trim();
+    return members.filter((m) => {
+      const name = (m.name || '').toLowerCase();
+      const email = (m.email || '').toLowerCase();
+      const phone = (m.phone || '').toLowerCase();
+      const category = (m.primaryCategoryName || m.primaryCategory?.name || '').toLowerCase();
+      const company = (
+        m.companyName ||
+        m.dynamicProfile?.companyName ||
+        m.dynamicProfile?.businessName ||
+        m.dynamicProfile?.institutionName ||
+        ''
+      ).toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        category.includes(q) ||
+        company.includes(q)
+      );
+    });
+  }, [members, search]);
+
   const handleStatusToggle = async (member: any) => {
     const isEligible = member.kycStatus === 'APPROVED' && member.paymentStatus === 'PAID';
     if (member.status !== 'ACTIVE' && !isEligible) {
@@ -191,15 +217,15 @@ export const MembersPage: React.FC = () => {
                     <SkeletonTable rows={5} cols={7} />
                   </td>
                 </tr>
-              ) : members.length === 0 ? (
+              ) : filteredMembers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-slate-400 text-xs">
-                    No members found matching filter criteria.
+                    {search ? `No members found matching "${search}".` : 'No members found matching filter criteria.'}
                   </td>
                 </tr>
               ) : (
                 <AnimatePresence>
-                  {members.map((m, idx) => (
+                  {filteredMembers.map((m, idx) => (
                     <motion.tr
                       key={m._id}
                       variants={rowVariants}
