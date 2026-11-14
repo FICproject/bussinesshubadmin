@@ -722,7 +722,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                 </motion.div>
               )}
 
-              {/* TAB 4: BANK DETAILS */}
+              {/* TAB 4: BANK DETAILS (UPI-First Settlement View) */}
               {activeTab === 'BANK_DETAILS' && (
                 <motion.div
                   key="tab_bank_details"
@@ -732,120 +732,105 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ memberId, 
                   transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                   className="space-y-4"
                 >
-                  {/* Primary Bank Card */}
-                  <div className="relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-white shadow-xl border border-sky-900/40">
+                  {/* Digital Payment & UPI Settlement Banner */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-white shadow-xl border border-sky-900/40 space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center space-x-2.5">
-                        <div className="p-2 bg-sky-500/20 rounded-xl border border-sky-400/30 text-sky-300">
-                          <Landmark className="w-5 h-5" />
+                        <div className="p-2.5 bg-sky-500/20 rounded-xl border border-sky-400/30 text-sky-300">
+                          <QrCode className="w-5 h-5" />
                         </div>
                         <div>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300 font-mono">
-                            Primary Settlement Account
+                            Digital Settlement Protocol
                           </span>
-                          <h4 className="text-sm font-bold text-white mt-0.5">
-                            {bankDetails?.bankName && bankDetails.bankName !== 'No Bank Linked'
-                              ? bankDetails.bankName
-                              : 'No Verified Bank Account Linked'}
+                          <h4 className="text-base font-bold text-white mt-0.5">
+                            Transactions Handled via UPI
                           </h4>
                         </div>
                       </div>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
-                          bankDetails?.verificationStatus === 'VERIFIED'
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
-                            : bankDetails?.verificationStatus === 'VERIFICATION_PENDING'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
-                            : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
-                        }`}
-                      >
-                        {bankDetails?.verificationStatus || 'NOT_ADDED'}
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                        UPI ENABLED
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-white/10 text-xs font-mono">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-sans">Account Number</span>
-                        <p className="text-sm font-bold text-white tracking-wider mt-0.5">
-                          {bankDetails?.accountNumberMasked || bankDetails?.accountNumber || 'Not Linked'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-sans">IFSC Code</span>
-                        <p className="text-sm font-bold text-sky-300 mt-0.5">{bankDetails?.ifscCode || 'N/A'}</p>
-                      </div>
-                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed pt-1">
+                      Platform transactions, membership fees, and ecosystem settlements are processed digitally via verified UPI and payment gateways, bypassing manual bank account records.
+                    </p>
                   </div>
 
-                  {/* Additional Bank Details Box */}
+                  {/* Verified UPI & Gateway Transaction Records */}
                   <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
-                      Account & Routing Specifications
+                      Verified UPI & Payment Records
                     </span>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
-                        <span className="text-[10px] text-slate-400 block">Account Holder Name</span>
-                        <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                          {bankDetails?.accountHolderName || member?.name}
+                        <span className="text-[10px] text-slate-400 block font-medium">Virtual Payment Address (UPI)</span>
+                        <p className="font-bold text-sky-600 dark:text-sky-400 font-mono mt-1 flex items-center gap-1.5 text-sm">
+                          <QrCode className="w-4 h-4 shrink-0" />
+                          <span>{bankDetails?.upiId || `${member?.email?.split('@')[0]}@upi`}</span>
                         </p>
                       </div>
 
                       <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
-                        <span className="text-[10px] text-slate-400 block">Account Type</span>
-                        <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                          {bankDetails?.accountType || 'Savings Account'}
+                        <span className="text-[10px] text-slate-400 block font-medium">Payment Channel</span>
+                        <p className="font-bold text-slate-900 dark:text-slate-100 mt-1 flex items-center gap-1.5 text-sm">
+                          <CreditCard className="w-4 h-4 text-sky-500 shrink-0" />
+                          <span>{bankDetails?.membershipPayment?.paymentMethod || 'Razorpay UPI Gateway'}</span>
                         </p>
                       </div>
 
-                      <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
-                        <span className="text-[10px] text-slate-400 block">Branch & Location</span>
-                        <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                          {bankDetails?.branchName || 'Main Branch'}
-                        </p>
-                      </div>
+                      {bankDetails?.membershipPayment?.referenceId && (
+                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                          <span className="text-[10px] text-slate-400 block font-medium">Gateway Payment Ref</span>
+                          <p className="font-bold text-slate-900 dark:text-slate-100 font-mono mt-1 text-xs truncate" title={bankDetails.membershipPayment.referenceId}>
+                            {bankDetails.membershipPayment.referenceId}
+                          </p>
+                        </div>
+                      )}
 
-                      <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
-                        <span className="text-[10px] text-slate-400 block">Virtual Payment Address (UPI)</span>
-                        <p className="font-bold text-sky-600 dark:text-sky-400 font-mono mt-0.5 flex items-center gap-1">
-                          <QrCode className="w-3.5 h-3.5" />
-                          <span>{bankDetails?.upiId || `${member?.email?.split('@')[0]}@okaxis`}</span>
-                        </p>
-                      </div>
+                      {bankDetails?.membershipPayment?.razorpayOrderId && (
+                        <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                          <span className="text-[10px] text-slate-400 block font-medium">Gateway Order ID</span>
+                          <p className="font-bold text-slate-900 dark:text-slate-100 font-mono mt-1 text-xs truncate" title={bankDetails.membershipPayment.razorpayOrderId}>
+                            {bankDetails.membershipPayment.razorpayOrderId}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Membership Fee Direct Bank Payment Proof Box */}
+                    {/* Membership Fee Payment Proof */}
                     {bankDetails?.membershipPayment && (
-                      <div className="p-3.5 bg-sky-50 dark:bg-sky-950/40 rounded-xl border border-sky-200 dark:border-sky-800/60 flex items-center justify-between text-xs">
+                      <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
                         <div className="flex items-center space-x-2.5">
-                          <div className="p-2 bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-300 rounded-lg shrink-0">
-                            <CreditCard className="w-4 h-4" />
+                          <div className="p-2 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 rounded-lg shrink-0">
+                            <CheckCircle2 className="w-4 h-4" />
                           </div>
                           <div>
                             <p className="font-bold text-slate-900 dark:text-slate-100">
-                              Membership Fee Paid via Bank ({bankDetails.membershipPayment.paidFrom})
+                              Membership Fee Paid via UPI ({bankDetails.membershipPayment.paidFrom || 'UPI Gateway'})
                             </p>
                             <p className="text-[10px] text-slate-400 font-mono">
-                              Txn Ref: {bankDetails.membershipPayment.referenceId} • Paid on: {new Date(bankDetails.membershipPayment.paidAt).toLocaleDateString()}
+                              Paid on: {new Date(bankDetails.membershipPayment.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </p>
                           </div>
                         </div>
                         <div className="text-right shrink-0 pl-2">
-                          <span className="font-extrabold text-xs text-sky-700 dark:text-sky-300 font-mono block">
+                          <span className="font-extrabold text-xs text-emerald-700 dark:text-emerald-300 font-mono block">
                             ₹{bankDetails.membershipPayment.amount}
                           </span>
-                          <span className="text-[9px] font-bold uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                          <span className="text-[9px] font-bold uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
                             {bankDetails.membershipPayment.status}
                           </span>
                         </div>
                       </div>
                     )}
 
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center space-x-2">
-                      <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <div className="p-3 bg-sky-50 dark:bg-sky-950/30 rounded-xl border border-sky-200/80 dark:border-sky-800/50 text-[11px] text-sky-800 dark:text-sky-300 flex items-center space-x-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-sky-600 dark:text-sky-400" />
                       <span>
-                        Bank account penny-drop verification passed. Enabled for automatic withdrawal settlements and
-                        commission payouts.
+                        Transactions and fee settlements are verified directly via UPI gateway. Manual bank account statements are not stored or required.
                       </span>
                     </div>
                   </div>

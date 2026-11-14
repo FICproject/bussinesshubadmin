@@ -317,6 +317,7 @@ export const ReferralBonusPage: React.FC = () => {
               <option value="ALL">All Status</option>
               <option value="PAID">Paid</option>
               <option value="APPROVED">Approved / Unpaid</option>
+              <option value="PENDING">Pending Review</option>
             </select>
           </div>
         </div>

@@ -116,10 +116,9 @@ export const KycVerificationPage: React.FC = () => {
   const { showAlert } = useDialog();
 
   const tabs = [
-    { label: 'All', value: 'ALL' },
+    { label: 'All Pending Review', value: 'ALL' },
     { label: 'Submitted', value: 'SUBMITTED' },
-    { label: 'Approved', value: 'APPROVED' },
-    { label: 'Resubmit', value: 'RESUBMISSION_REQUESTED' },
+    { label: 'Resubmit Required', value: 'RESUBMISSION_REQUESTED' },
   ];
 
   useEffect(() => {

@@ -232,16 +232,23 @@ export const StaffManagementPage: React.FC = () => {
                           </button>
                         )}
 
-                        <button
-                          onClick={() => handleToggleActive(u._id, u.isActive)}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all active:scale-95 border ${
-                            u.isActive
-                              ? 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900 hover:bg-rose-100'
-                              : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {u.isActive ? 'Disable Access' : 'Enable Access'}
-                        </button>
+                        {u.role === 'SUPER_ADMIN' ? (
+                          <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 select-none">
+                            <Lock className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Protected Super Admin</span>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleToggleActive(u._id, u.isActive)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all active:scale-95 border ${
+                              u.isActive
+                                ? 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900 hover:bg-rose-100'
+                                : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {u.isActive ? 'Disable Access' : 'Enable Access'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </motion.tr>
@@ -355,7 +362,9 @@ export const StaffManagementPage: React.FC = () => {
                     className="w-full text-xs font-medium px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-2xs"
                   >
                     <option value="ADMIN">ADMIN (Operations Manager - Full Operational Access)</option>
-                    <option value="SUPER_ADMIN">SUPER_ADMIN (Full Platform Authority & Governance)</option>
+                    {currentLoggedInUser?.role === 'SUPER_ADMIN' && (
+                      <option value="SUPER_ADMIN">SUPER_ADMIN (Full Platform Authority & Governance)</option>
+                    )}
                   </select>
                   <span className="text-[10px] text-slate-400 mt-1 block">
                     Admin role is granted operational authority across all desks (KYC, Members, Requests, Meetings, Services & Moderation).
