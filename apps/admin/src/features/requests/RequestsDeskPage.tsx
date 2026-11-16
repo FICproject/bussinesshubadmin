@@ -46,6 +46,7 @@ export const RequestsDeskPage: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState('');
   const [actionErrorMsg, setActionErrorMsg] = useState('');
+  const [selectedMeetingParticipant, setSelectedMeetingParticipant] = useState<'PROVIDER' | 'REQUESTER'>('PROVIDER');
 
   // Stage 1 Meeting form
   const [stage1Date, setStage1Date] = useState('');
@@ -119,6 +120,12 @@ export const RequestsDeskPage: React.FC = () => {
     setActionSuccessMsg('');
     setActionErrorMsg('');
     setInternalNoteInput('');
+
+    if (reqItem.stage1Meeting?.status === 'COMPLETED' && reqItem.stage2Meeting?.status !== 'COMPLETED') {
+      setSelectedMeetingParticipant('REQUESTER');
+    } else {
+      setSelectedMeetingParticipant('PROVIDER');
+    }
 
     // Pre-fill Stage 1
     if (reqItem.stage1Meeting) {
@@ -242,6 +249,7 @@ export const RequestsDeskPage: React.FC = () => {
       });
       if (res?.success) {
         showSuccessBanner(res.message || 'Stage 1 meeting marked COMPLETED! Stage 2 is now unlocked.');
+        setSelectedMeetingParticipant('REQUESTER');
         await loadRequests(targetId);
       } else {
         throw new Error(res?.error || 'Failed to complete Stage 1 meeting');
@@ -904,42 +912,65 @@ export const RequestsDeskPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Dispatch Action */}
-                  {selectedReq.status === 'SUBMITTED' || selectedReq.status === 'NEW' || selectedReq.status === 'UNDER_ADMIN_REVIEW' ? (
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={handleSendToProvider}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Project Information to Provider</span>
-                    </button>
-                  ) : selectedReq.status === 'SENT_TO_PROVIDER' ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
-                        Brief Sent &bull; Awaiting Reply
-                      </span>
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={handleSendToProvider}
-                        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-300 transition-colors"
-                        title="Re-send project brief notification"
-                      >
-                        Re-send Brief
-                      </button>
-                    </div>
-                  ) : null}
+                  {/* Dispatch Action - Phase 6: Strictly hidden if provider already decided */}
+                  {(() => {
+                    const hasProviderDecided = Boolean(
+                      selectedReq.providerDecision === 'ACCEPTED' ||
+                      selectedReq.providerDecision === 'REJECTED' ||
+                      selectedReq.status === 'PROVIDER_ACCEPTED' ||
+                      selectedReq.status === 'PROVIDER_REJECTED' ||
+                      selectedReq.stage1Meeting?.status ||
+                      selectedReq.stage2Meeting?.status
+                    );
+
+                    if (hasProviderDecided) {
+                      return null; // Never display send or re-send buttons once provider decided
+                    }
+
+                    if (selectedReq.status === 'SUBMITTED' || selectedReq.status === 'NEW' || selectedReq.status === 'UNDER_ADMIN_REVIEW') {
+                      return (
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={handleSendToProvider}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Send Project Information to Provider</span>
+                        </button>
+                      );
+                    }
+
+                    if (selectedReq.status === 'SENT_TO_PROVIDER') {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                            Brief Sent &bull; Awaiting Reply
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={handleSendToProvider}
+                            className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-300 transition-colors"
+                            title="Re-send project brief notification"
+                          >
+                            Re-send Brief
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
                 </div>
 
                 {/* Provider Outcome Banner */}
                 {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
+                  <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>
-                        <strong>Provider Accepted Project!</strong> Stage 1 meeting can now be scheduled with the service provider.
+                        <strong>Accepted by Provider: {selectedReq.providerName || 'Provider'}</strong> &bull; Decision: ACCEPTED. Proceed to Stage 1 Meeting scheduling below.
                       </span>
                     </div>
                     {selectedReq.providerRespondedAt && (
@@ -966,406 +997,477 @@ export const RequestsDeskPage: React.FC = () => {
               </div>
 
               {/* ========================================================
-                  PHASE 5: TWO-STAGE BOOK INTRODUCTION CALL
+                  PHASE 3 & 5: TWO-STAGE BOOK INTRODUCTION CALL
                  ======================================================== */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <Video className="w-4 h-4 text-indigo-600" />
-                  <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-mono">
-                    Two-Stage Introductory Consultation Workflow
-                  </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Video className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-mono">
+                      3. BOOK INTRODUCTION CALL
+                    </h4>
+                  </div>
+
+                  {/* Participant Selection Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="meeting-participant-select" className="text-xs font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      Schedule Meeting With:
+                    </label>
+                    <select
+                      id="meeting-participant-select"
+                      value={selectedMeetingParticipant}
+                      onChange={(e) => setSelectedMeetingParticipant(e.target.value as any)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="PROVIDER">
+                        1. Service Provider (Stage 1) - {selectedReq.providerName || 'Provider'}
+                      </option>
+                      <option
+                        value="REQUESTER"
+                        disabled={selectedReq.stage1Meeting?.status !== 'COMPLETED'}
+                      >
+                        2. Original Service Requestor (Stage 2) - {selectedReq.requesterName || 'Client'}{selectedReq.stage1Meeting?.status !== 'COMPLETED' ? ' (Locked - Complete Stage 1 First)' : ''}
+                      </option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* STAGE 1: ADMIN + SERVICE PROVIDER MEETING */}
-                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
-                          1
-                        </span>
-                        <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          1. BOOK ADMIN & SERVICE PROVIDER MEETING
-                        </h5>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
-                        <strong>Participants:</strong> FIC Admin + Service Provider only. (Original client is excluded from this stage).
-                      </p>
-                    </div>
-
+                {/* Quick Stage Tabs */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMeetingParticipant('PROVIDER')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedMeetingParticipant === 'PROVIDER'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-mono">1</span>
+                    <span>Stage 1: Service Provider ({selectedReq.providerName || 'Provider'})</span>
                     {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Stage 1 Completed</span>
-                      </span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 ml-1" />
                     ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Call Scheduled</span>
-                      </span>
-                    ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
-                        Ready to Schedule
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
-                        <Lock className="w-3 h-3" />
-                        <span>Awaiting Provider Acceptance</span>
-                      </span>
-                    )}
-                  </div>
+                      <Clock className="w-3.5 h-3.5 text-amber-300 ml-1" />
+                    ) : null}
+                  </button>
 
-                  {/* Stage 1 Content */}
-                  {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
-                    <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-emerald-800 dark:text-emerald-200">
-                          Alignment Call Concluded
-                        </span>
-                        <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
-                          {selectedReq.stage1Meeting.completedAt ? new Date(selectedReq.stage1Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
-                        <p>Scheduled: {selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime} ({selectedReq.stage1Meeting.durationMinutes} mins)</p>
-                        <p>Conducted by: {selectedReq.stage1Meeting.completedByAdminName || 'Admin'}</p>
-                        {selectedReq.stage1Meeting.notes && <p className="italic">Notes: "{selectedReq.stage1Meeting.notes}"</p>}
-                      </div>
-                    </div>
-                  ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
-                    <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>{selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime}</span>
-                            <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage1Meeting.durationMinutes} mins)</span>
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Mode: {selectedReq.stage1Meeting.meetingMode || 'GOOGLE_MEET'}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {selectedReq.stage1Meeting.meetingLink && (
-                            <a
-                              href={selectedReq.stage1Meeting.meetingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
-                            >
-                              <span>Join Google Meet</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            disabled={isUpdating}
-                            onClick={handleCompleteStage1}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Mark Meeting Completed</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
-                    /* Stage 1 Schedule Form */
-                    <form onSubmit={handleScheduleStage1} className="space-y-3 pt-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Select Date *
-                          </label>
-                          <input
-                            type="date"
-                            required
-                            min={new Date().toISOString().split('T')[0]}
-                            value={stage1Date}
-                            onChange={(e) => setStage1Date(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Select Time *
-                          </label>
-                          <input
-                            type="time"
-                            required
-                            value={stage1Time}
-                            onChange={(e) => setStage1Time(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Duration
-                          </label>
-                          <select
-                            value={stage1Duration}
-                            onChange={(e) => setStage1Duration(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="15">15 minutes</option>
-                            <option value="30">30 minutes</option>
-                            <option value="45">45 minutes</option>
-                            <option value="60">60 minutes</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Meeting Mode
-                          </label>
-                          <select
-                            value={stage1Mode}
-                            onChange={(e) => setStage1Mode(e.target.value as any)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
-                            <option value="IN_PERSON">In-Person Meeting</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            {stage1Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
-                          </label>
-                          <input
-                            type="text"
-                            required={stage1Mode === 'IN_PERSON'}
-                            value={stage1LinkOrLocation}
-                            onChange={(e) => setStage1LinkOrLocation(e.target.value)}
-                            placeholder={stage1Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub, Chennai'}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end pt-1">
-                        <button
-                          type="submit"
-                          disabled={isUpdating}
-                          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>Schedule Admin & Provider Meeting</span>
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Stage 1 scheduling is locked until the provider reviews and accepts the project requirements.</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* STAGE 2: ADMIN + ORIGINAL SERVICE REQUESTOR MEETING */}
-                <div
-                  className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                    selectedReq.stage1Meeting?.status === 'COMPLETED'
-                      ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
-                      : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60 opacity-80'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center ${
-                            selectedReq.stage1Meeting?.status === 'COMPLETED' ? 'bg-indigo-600' : 'bg-slate-400'
-                          }`}
-                        >
-                          2
-                        </span>
-                        <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          2. BOOK ADMIN & SERVICE REQUESTOR MEETING
-                        </h5>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
-                        <strong>Participants:</strong> FIC Admin + Original Service Requestor (Member A) only. (Provider is excluded from this stage).
-                      </p>
-                    </div>
-
-                    {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Stage 2 Completed & Closed</span>
-                      </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMeetingParticipant('REQUESTER')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedMeetingParticipant === 'REQUESTER'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-mono">2</span>
+                    <span>Stage 2: Original Requestor ({selectedReq.requesterName || 'Client'})</span>
+                    {selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
+                      <Lock className="w-3 h-3 text-slate-400 ml-1" />
+                    ) : selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 ml-1" />
                     ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Client Meeting Scheduled</span>
-                      </span>
-                    ) : selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
-                        Ready to Schedule Client
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
-                        <Lock className="w-3 h-3" />
-                        <span>Locked (Complete Stage 1 First)</span>
-                      </span>
-                    )}
-                  </div>
+                      <Clock className="w-3.5 h-3.5 text-amber-300 ml-1" />
+                    ) : null}
+                  </button>
+                </div>
 
-                  {/* Stage 2 Content */}
-                  {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
-                    <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-emerald-800 dark:text-emerald-200">
-                          Client Consultation Concluded &bull; Request Marked Completed
-                        </span>
-                        <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
-                          {selectedReq.stage2Meeting.completedAt ? new Date(selectedReq.stage2Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
-                        </span>
+                {/* STAGE 1 VIEW */}
+                {selectedMeetingParticipant === 'PROVIDER' && (
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
+                            1
+                          </span>
+                          <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            Stage 1: Admin & Service Provider Alignment Meeting
+                          </h5>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
+                          <strong>Participants:</strong> FIC Admin + Service Provider only ({selectedReq.providerName || 'Provider'}). Original client is excluded from this stage.
+                        </p>
                       </div>
-                      <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
-                        <p>Scheduled: {selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime} ({selectedReq.stage2Meeting.durationMinutes} mins)</p>
-                        <p>Conducted by: {selectedReq.stage2Meeting.completedByAdminName || 'Admin'}</p>
-                      </div>
+
+                      {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Stage 1 Completed</span>
+                        </span>
+                      ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Call Scheduled</span>
+                        </span>
+                      ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                          Ready to Schedule
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          <span>Awaiting Provider Acceptance</span>
+                        </span>
+                      )}
                     </div>
-                  ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
-                    <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>{selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime}</span>
-                            <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage2Meeting.durationMinutes} mins)</span>
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Client: {selectedReq.requesterName} ({selectedReq.requesterEmail})
-                          </p>
+
+                    {/* Stage 1 Content */}
+                    {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                      <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                            Alignment Call Concluded
+                          </span>
+                          <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
+                            {selectedReq.stage1Meeting.completedAt ? new Date(selectedReq.stage1Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
+                          <p>Scheduled: {selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime} ({selectedReq.stage1Meeting.durationMinutes} mins)</p>
+                          <p>Conducted by: {selectedReq.stage1Meeting.completedByAdminName || 'Admin'}</p>
+                          {selectedReq.stage1Meeting.notes && <p className="italic">Notes: "{selectedReq.stage1Meeting.notes}"</p>}
+                        </div>
+                      </div>
+                    ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
+                      <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                          <div>
+                            <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>{selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime}</span>
+                              <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage1Meeting.durationMinutes} mins)</span>
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Mode: {selectedReq.stage1Meeting.meetingMode || 'GOOGLE_MEET'} &bull; Provider: {selectedReq.providerName}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {selectedReq.stage1Meeting.meetingLink && (
+                              <a
+                                href={selectedReq.stage1Meeting.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                              >
+                                <span>Join Google Meet</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={handleCompleteStage1}
+                              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Mark Meeting Completed</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                      /* Stage 1 Schedule Form */
+                      <form onSubmit={handleScheduleStage1} className="space-y-3 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Select Date *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              min={new Date().toISOString().split('T')[0]}
+                              value={stage1Date}
+                              onChange={(e) => setStage1Date(e.target.value)}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Select Time *
+                            </label>
+                            <input
+                              type="time"
+                              required
+                              value={stage1Time}
+                              onChange={(e) => setStage1Time(e.target.value)}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Duration
+                            </label>
+                            <select
+                              value={stage1Duration}
+                              onChange={(e) => setStage1Duration(e.target.value)}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="15">15 minutes</option>
+                              <option value="30">30 minutes</option>
+                              <option value="45">45 minutes</option>
+                              <option value="60">60 minutes</option>
+                            </select>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {selectedReq.stage2Meeting.meetingLink && (
-                            <a
-                              href={selectedReq.stage2Meeting.meetingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Meeting Mode
+                            </label>
+                            <select
+                              value={stage1Mode}
+                              onChange={(e) => setStage1Mode(e.target.value as any)}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
-                              <span>Join Google Meet</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
+                              <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
+                              <option value="IN_PERSON">In-Person Meeting</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              {stage1Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
+                            </label>
+                            <input
+                              type="text"
+                              required={stage1Mode === 'IN_PERSON'}
+                              value={stage1LinkOrLocation}
+                              onChange={(e) => setStage1LinkOrLocation(e.target.value)}
+                              placeholder={stage1Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub, Chennai'}
+                              className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end pt-1">
                           <button
-                            type="button"
+                            type="submit"
                             disabled={isUpdating}
-                            onClick={handleCompleteStage2}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                           >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Mark Completed & Close Request</span>
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Schedule Admin & Provider Meeting</span>
                           </button>
                         </div>
+                      </form>
+                    ) : (
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>Stage 1 scheduling is locked until the provider reviews and accepts the project requirements.</span>
                       </div>
-                    </div>
-                  ) : selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
-                    /* Stage 2 Schedule Form */
-                    <form onSubmit={handleScheduleStage2} className="space-y-3 pt-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Select Date *
-                          </label>
-                          <input
-                            type="date"
-                            required
-                            min={new Date().toISOString().split('T')[0]}
-                            value={stage2Date}
-                            onChange={(e) => setStage2Date(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
+                    )}
+                  </div>
+                )}
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Select Time *
-                          </label>
-                          <input
-                            type="time"
-                            required
-                            value={stage2Time}
-                            onChange={(e) => setStage2Time(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
+                {/* STAGE 2 VIEW */}
+                {selectedMeetingParticipant === 'REQUESTER' && (
+                  <div
+                    className={`p-5 rounded-2xl border transition-all space-y-4 ${
+                      selectedReq.stage1Meeting?.status === 'COMPLETED'
+                        ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
+                        : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60'
+                    }`}
+                  >
+                    {selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
+                      /* Phase 3.2 Prominent Lock Banner */
+                      <div className="p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 space-y-2">
+                        <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-xs">
+                          <Lock className="w-4 h-4 text-amber-600" />
+                          <span>Stage 2 Meeting Locked</span>
                         </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Duration
-                          </label>
-                          <select
-                            value={stage2Duration}
-                            onChange={(e) => setStage2Duration(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="15">15 minutes</option>
-                            <option value="30">30 minutes</option>
-                            <option value="45">45 minutes</option>
-                            <option value="60">60 minutes</option>
-                          </select>
-                        </div>
+                        <p className="text-[11.5px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                          Stage 2 is locked. Complete the Stage 1 alignment call with Service Provider (<strong>{selectedReq.providerName || 'Provider'}</strong>) first before scheduling consultation with original requestor <strong>{selectedReq.requesterName || 'Client'}</strong>.
+                        </p>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
+                                2
+                              </span>
+                              <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                Stage 2: Admin & Original Service Requestor Meeting
+                              </h5>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
+                              <strong>Participants:</strong> FIC Admin + Original Requestor ({selectedReq.requesterName || 'Client'}). Service provider is excluded from this stage.
+                            </p>
+                          </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            Meeting Mode
-                          </label>
-                          <select
-                            value={stage2Mode}
-                            onChange={(e) => setStage2Mode(e.target.value as any)}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
-                            <option value="IN_PERSON">In-Person Meeting</option>
-                          </select>
+                          {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Stage 2 Completed & Closed</span>
+                            </span>
+                          ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>Client Meeting Scheduled</span>
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                              Ready to Schedule Client
+                            </span>
+                          )}
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                            {stage2Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
-                          </label>
-                          <input
-                            type="text"
-                            required={stage2Mode === 'IN_PERSON'}
-                            value={stage2LinkOrLocation}
-                            onChange={(e) => setStage2LinkOrLocation(e.target.value)}
-                            placeholder={stage2Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub'}
-                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
-                          />
-                        </div>
-                      </div>
+                        {/* Stage 2 Content */}
+                        {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
+                          <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                                Client Consultation Concluded &bull; Request Marked Completed
+                              </span>
+                              <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
+                                {selectedReq.stage2Meeting.completedAt ? new Date(selectedReq.stage2Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
+                              <p>Scheduled: {selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime} ({selectedReq.stage2Meeting.durationMinutes} mins)</p>
+                              <p>Conducted by: {selectedReq.stage2Meeting.completedByAdminName || 'Admin'}</p>
+                            </div>
+                          </div>
+                        ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
+                          <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                              <div>
+                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                  <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span>{selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime}</span>
+                                  <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage2Meeting.durationMinutes} mins)</span>
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  Client: {selectedReq.requesterName} ({selectedReq.requesterEmail})
+                                </p>
+                              </div>
 
-                      <div className="flex items-center justify-end pt-1">
-                        <button
-                          type="submit"
-                          disabled={isUpdating}
-                          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>Schedule Admin & Requestor Meeting</span>
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Stage 2 is locked. Please schedule and complete Stage 1 (Admin & Provider Meeting) first.</span>
-                    </div>
-                  )}
-                </div>
+                              <div className="flex items-center gap-2">
+                                {selectedReq.stage2Meeting.meetingLink && (
+                                  <a
+                                    href={selectedReq.stage2Meeting.meetingLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                                  >
+                                    <span>Join Google Meet</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={isUpdating}
+                                  onClick={handleCompleteStage2}
+                                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Mark Completed & Close Request</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Stage 2 Schedule Form */
+                          <form onSubmit={handleScheduleStage2} className="space-y-3 pt-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                  Select Date *
+                                </label>
+                                <input
+                                  type="date"
+                                  required
+                                  min={new Date().toISOString().split('T')[0]}
+                                  value={stage2Date}
+                                  onChange={(e) => setStage2Date(e.target.value)}
+                                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                  Select Time *
+                                </label>
+                                <input
+                                  type="time"
+                                  required
+                                  value={stage2Time}
+                                  onChange={(e) => setStage2Time(e.target.value)}
+                                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                  Duration
+                                </label>
+                                <select
+                                  value={stage2Duration}
+                                  onChange={(e) => setStage2Duration(e.target.value)}
+                                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                  <option value="15">15 minutes</option>
+                                  <option value="30">30 minutes</option>
+                                  <option value="45">45 minutes</option>
+                                  <option value="60">60 minutes</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                  Meeting Mode
+                                </label>
+                                <select
+                                  value={stage2Mode}
+                                  onChange={(e) => setStage2Mode(e.target.value as any)}
+                                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                  <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
+                                  <option value="IN_PERSON">In-Person Meeting</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                  {stage2Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
+                                </label>
+                                <input
+                                  type="text"
+                                  required={stage2Mode === 'IN_PERSON'}
+                                  value={stage2LinkOrLocation}
+                                  onChange={(e) => setStage2LinkOrLocation(e.target.value)}
+                                  placeholder={stage2Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub'}
+                                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-end pt-1">
+                              <button
+                                type="submit"
+                                disabled={isUpdating}
+                                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>Schedule Admin & Requestor Meeting</span>
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Internal Admin Note & Audit Log */}

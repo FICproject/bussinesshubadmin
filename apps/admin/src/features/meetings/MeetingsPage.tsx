@@ -328,6 +328,16 @@ export const MeetingsPage: React.FC = () => {
                               FIC Capital Pitch
                             </span>
                           )}
+                          {((m.title && m.title.includes('Stage 1')) || (m.description && m.description.includes('Stage 1'))) && (
+                            <span className="shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-300/80 dark:border-indigo-700/50">
+                              Admin + Service Provider (Stage 1)
+                            </span>
+                          )}
+                          {((m.title && m.title.includes('Stage 2')) || (m.description && m.description.includes('Stage 2'))) && (
+                            <span className="shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/50">
+                              Admin + Original Requestor (Stage 2)
+                            </span>
+                          )}
                         </div>
                         {m.description && (
                           <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">

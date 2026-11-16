@@ -735,31 +735,36 @@ export const KycVerificationPage: React.FC = () => {
                   </div>
 
                   {/* Registration Source & Referral Attribution */}
-                  <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 bg-purple-50/70 dark:bg-purple-950/30 p-2.5 rounded-xl border border-purple-200 dark:border-purple-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div>
-                      <span className="font-bold text-purple-900 dark:text-purple-300 block">
-                        Registration Source: {selectedSubmission.referralInfo?.source === 'REFERRAL' ? 'Referral' : 'Direct Registration'}
-                      </span>
-                      {selectedSubmission.referralInfo?.source === 'REFERRAL' ? (
+                  {selectedSubmission.referralInfo?.source === 'REFERRAL' ? (
+                    <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 bg-purple-50/70 dark:bg-purple-950/30 p-2.5 rounded-xl border border-purple-200 dark:border-purple-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="font-bold text-purple-900 dark:text-purple-300 block">
+                          Registration Source: Referral
+                        </span>
                         <span className="text-[11px] text-purple-700 dark:text-purple-400 font-mono">
-                          Referred By: <strong className="font-semibold">{selectedSubmission.referralInfo.referredByName || 'Member Referrer'}</strong> • Referral Code: <strong className="font-semibold">{selectedSubmission.referralInfo.referralCode}</strong>
+                          Referred By: <strong className="font-semibold">{selectedSubmission.referralInfo.referredByName}</strong> &bull; Referral Code: <strong className="font-semibold">{selectedSubmission.referralInfo.referralCode}</strong>
                           {selectedSubmission.referralInfo.referrerPhone && (
-                            <span> • Phone: {selectedSubmission.referralInfo.referrerPhone}</span>
+                            <span> &bull; Phone: {selectedSubmission.referralInfo.referrerPhone}</span>
                           )}
                           {selectedSubmission.referralInfo.referrerEmail && (
-                            <span> • Email: {selectedSubmission.referralInfo.referrerEmail}</span>
+                            <span> &bull; Email: {selectedSubmission.referralInfo.referrerEmail}</span>
                           )}
                         </span>
-                      ) : (
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Organic registration directly via FIC Business Hub Portal
-                        </span>
-                      )}
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200 uppercase font-mono">
+                        REFERRED
+                      </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200 uppercase font-mono">
-                      {selectedSubmission.referralInfo?.source === 'REFERRAL' ? 'REFERRED' : 'DIRECT'}
-                    </span>
-                  </div>
+                  ) : (
+                    <div className="sm:col-span-2 md:col-span-3 p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
+                      <span className="text-slate-600 dark:text-slate-400 font-medium">
+                        Registration Source: <strong className="text-slate-800 dark:text-slate-200 font-semibold">Direct</strong>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase font-mono">
+                        DIRECT
+                      </span>
+                    </div>
+                  )}
 
                   {/* Payment Gateway Transaction Proof */}
                   <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 bg-emerald-50/70 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
