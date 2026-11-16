@@ -11,6 +11,10 @@
     --bg-card: #FFFFFF;
     --bg-elevated: #F8F7FF;
     --border-primary: #ECEAF5;
+    --border-color: #ECEAF5;
+    --card-bg: #FFFFFF;
+    --bg-secondary: #F8F7FF;
+    --card-hover: #F1EFFE;
     --accent-primary: #7047D7;
     --accent-secondary: #0284C7;
     --accent-tertiary: #0D9488;
@@ -39,6 +43,10 @@
     --bg-card: #1E293B;
     --bg-elevated: #26354D;
     --border-primary: #334155;
+    --border-color: #334155;
+    --card-bg: #1E293B;
+    --bg-secondary: #1E293B;
+    --card-hover: #283548;
     --accent-primary: #A78BFA;
     --accent-secondary: #38BDF8;
     --accent-tertiary: #2DD4BF;

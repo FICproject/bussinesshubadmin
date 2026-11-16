@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Briefcase, CheckCircle2, XCircle, Eye, Search, X, LayoutGrid, List } from 'lucide-react';
+import { Briefcase, CheckCircle2, XCircle, Eye, Search, X, LayoutGrid, List, FileText, ExternalLink, ShieldCheck, Tag, MapPin, Clock, DollarSign, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { containerVariants, itemVariants } from '../../utils/animations';
@@ -10,6 +10,7 @@ import { useDialog } from '../../context/DialogContext';
 export const ServicesModerationPage: React.FC = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedServiceForView, setSelectedServiceForView] = useState<any | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState(() => {
     const s = searchParams.get('status');
@@ -367,6 +368,204 @@ export const ServicesModerationPage: React.FC = () => {
           ))}
         </motion.div>
       )}
-    </div>
+    
+      {/* Service Details Modal */}
+      <AnimatePresence>
+        {selectedServiceForView && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-indigo-500/20 flex items-center justify-between bg-gradient-to-r from-[#1A1646] via-[#1E1B4B] to-[#0F172A] text-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <Briefcase className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-indigo-300">
+                        SERVICE ID: {selectedServiceForView._id?.slice(-8).toUpperCase()}
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          selectedServiceForView.status === 'APPROVED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : selectedServiceForView.status === 'REJECTED'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}
+                      >
+                        {selectedServiceForView.status?.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-lg font-bold text-white line-clamp-1">
+                      {selectedServiceForView.title}
+                    </h2>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedServiceForView(null)}
+                  className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs flex-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                {/* Provider Identity Box */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    Provider Identity & Credentials (FIC Internal Audit)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div>
+                      <div className="text-slate-500 dark:text-slate-400 font-medium">Provider Full Name</div>
+                      <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                        {selectedServiceForView.providerPrivateName || 'FIC Member'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500 dark:text-slate-400 font-medium">Email Address</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                        {selectedServiceForView.providerEmail}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500 dark:text-slate-400 font-medium">Category / Sector</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {selectedServiceForView.categoryName}
+                        {selectedServiceForView.subcategoryName ? ` • ${selectedServiceForView.subcategoryName}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Specifications */}
+                <div className="space-y-3">
+                  <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                    Service Specifications & Scope
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {selectedServiceForView.pricingEstimate && (
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 font-semibold">Pricing Estimate</div>
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                            {selectedServiceForView.pricingEstimate}
+                          </div>
+                        </div>
+                      )}
+                      {selectedServiceForView.deliveryMode && (
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 font-semibold">Delivery Mode</div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100">
+                            {selectedServiceForView.deliveryMode}
+                          </div>
+                        </div>
+                      )}
+                      {selectedServiceForView.coverageArea && (
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 font-semibold">Coverage Area</div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100">
+                            {selectedServiceForView.coverageArea}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <div className="text-slate-500 dark:text-slate-400 font-semibold mb-1">
+                        Full Description:
+                      </div>
+                      <p className="text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        {selectedServiceForView.description}
+                      </p>
+                    </div>
+
+                    {selectedServiceForView.servicesOffered && selectedServiceForView.servicesOffered.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div className="text-slate-500 dark:text-slate-400 font-semibold mb-1.5">
+                          Key Capabilities & Deliverables:
+                        </div>
+                        <ul className="space-y-1.5">
+                          {selectedServiceForView.servicesOffered.map((item: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
+                              <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">✓</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedServiceForView.tags && selectedServiceForView.tags.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div className="text-slate-500 dark:text-slate-400 font-semibold mb-1.5">Tags:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedServiceForView.tags.map((tag: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 shrink-0">
+                <button
+                  onClick={() => setSelectedServiceForView(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+                <div className="flex items-center gap-2">
+                  {selectedServiceForView.status !== 'APPROVED' && (
+                    <button
+                      onClick={async () => {
+                        const id = selectedServiceForView._id;
+                        await handleModerate(id, 'APPROVED');
+                        setSelectedServiceForView(null);
+                      }}
+                      className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Approve Listing</span>
+                    </button>
+                  )}
+                  {selectedServiceForView.status !== 'REJECTED' && (
+                    <button
+                      onClick={async () => {
+                        const id = selectedServiceForView._id;
+                        await handleModerate(id, 'REJECTED');
+                        setSelectedServiceForView(null);
+                      }}
+                      className="flex items-center space-x-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-semibold transition-all active:scale-95 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>Reject</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+</div>
   );
 };

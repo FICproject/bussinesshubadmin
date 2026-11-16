@@ -696,28 +696,28 @@ export const BusinessIdeasManagementPage: React.FC = () => {
       {/* 5. Comprehensive Idea Detail & Review Modal */}
       <AnimatePresence>
         {selectedIdea && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-sm overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
             >
               {/* Modal Sticky Header */}
-              <div className="p-4 sm:p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]/50 shrink-0">
+              <div className="p-4 sm:p-5 border-b border-indigo-500/20 flex items-center justify-between bg-gradient-to-r from-[#1A1646] via-[#1E1B4B] to-[#0F172A] text-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  <div className="p-2.5 rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     <Lightbulb className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-indigo-400">
+                      <span className="font-mono text-xs font-bold text-indigo-300">
                         {selectedIdea.ideaRequestId || selectedIdea.refNumber}
                       </span>
                       {getStatusBadge(selectedIdea.status, selectedIdea.marketplacePublished)}
                     </div>
-                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] line-clamp-1">
+                    <h2 className="text-base sm:text-lg font-bold text-white line-clamp-1">
                       {selectedIdea.title}
                     </h2>
                   </div>
@@ -725,14 +725,14 @@ export const BusinessIdeasManagementPage: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedIdea(null)}
-                  className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--card-hover)] transition-all cursor-pointer"
+                  className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Modal Scrollable Body */}
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs flex-1">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs flex-1 bg-white dark:bg-slate-900">
                 {/* Section A: Submitter Profile & Contact Credentials */}
                 <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] space-y-2">
                   <div className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1194,10 +1194,10 @@ export const BusinessIdeasManagementPage: React.FC = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 border-t border-[var(--border-color)] flex justify-end gap-2 bg-[var(--bg-secondary)]/50 shrink-0">
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2 bg-slate-50 dark:bg-slate-900/60 shrink-0">
                 <button
                   onClick={() => setSelectedIdea(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--card-bg)] hover:bg-[var(--card-hover)] text-[var(--text-primary)] transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
                 >
                   Close
                 </button>

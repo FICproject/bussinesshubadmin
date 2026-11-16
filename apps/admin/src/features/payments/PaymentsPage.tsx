@@ -410,7 +410,7 @@ export const PaymentsPage: React.FC = () => {
         )}
 
         <form onSubmit={handleSavePricing} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Field A: First Year Membership Fee */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
               <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
@@ -489,36 +489,6 @@ export const PaymentsPage: React.FC = () => {
               </div>
               <span className="text-[10.5px] text-slate-400 block font-sans">
                 Default: ₹500. Credited upon Admin reward approval.
-              </span>
-            </div>
-
-            {/* Field D: Referral Programme Active Toggle */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5 flex flex-col justify-between">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
-                  Referral Programme Status
-                </label>
-                <div className="mt-2 flex items-center space-x-3">
-                  <select
-                    disabled={pricingSaving}
-                    value={pricingConfig.referralProgramEnabled ? 'ENABLED' : 'DISABLED'}
-                    onChange={(e) =>
-                      setPricingConfig({
-                        ...pricingConfig,
-                        referralProgramEnabled: e.target.value === 'ENABLED'
-                      })
-                    }
-                    className={`w-full px-3 py-2 text-xs font-bold rounded-lg border ${
-                      'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 focus:outline-none'
-                    }`}
-                  >
-                    <option value="ENABLED">🟢 Active & Rewarding</option>
-                    <option value="DISABLED">🔴 Paused / Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <span className="text-[10.5px] text-slate-400 block font-sans">
-                Controls referral rewards across all member profiles.
               </span>
             </div>
           </div>
