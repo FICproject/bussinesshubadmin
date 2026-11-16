@@ -65,6 +65,7 @@ export const App: React.FC = () => {
         <Route path="investment-requests" element={<FundingDeskPage defaultTab="INVESTMENT_REQUESTS" />} />
         <Route path="business-ideas" element={<BusinessIdeasManagementPage />} />
         <Route path="scaling" element={<BusinessScalingManagementPage />} />
+        <Route path="scaling-requests" element={<BusinessScalingManagementPage />} />
         <Route path="business-scaling" element={<BusinessScalingManagementPage />} />
         <Route path="requests" element={<RequestsDeskPage />} />
         <Route path="service-requests" element={<RequestsDeskPage />} />

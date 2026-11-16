@@ -84,7 +84,7 @@ export const BusinessScalingManagementPage: React.FC = () => {
       const qs = params.toString() ? `?${params.toString()}` : '';
 
       const res = await apiFetch(`/api/admin/scaling${qs}`);
-      const list = res?.items || (Array.isArray(res) ? res : []);
+      const list = res?.items || (Array.isArray(res) ? res : res?.data?.items || []);
       setScalingRequests(list);
 
       if (keepSelectedId) {
