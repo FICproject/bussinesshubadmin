@@ -24,6 +24,8 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  Lightbulb,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -72,6 +74,8 @@ export const AdminLayout: React.FC = () => {
     // 3. Ecosystem Marketplace & Catalog
     { name: 'Categories & Config', path: '/categories', icon: FolderTree, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Service Moderation', path: '/services', icon: Briefcase, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Business Ideas', path: '/business-ideas', icon: Lightbulb, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Scaling Requests', path: '/scaling', icon: TrendingUp, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 4. Commercials & Capital Desk
     { name: 'Payments & Fees', path: '/payments', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },

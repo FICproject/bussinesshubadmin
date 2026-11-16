@@ -17,6 +17,8 @@ import { StaffManagementPage } from './features/staff/StaffManagementPage';
 import { AuditLogsPage } from './features/audit-logs/AuditLogsPage';
 import { ReferralBonusPage } from './features/referrals/ReferralBonusPage';
 import { FundingDeskPage } from './features/funding/FundingDeskPage';
+import { BusinessIdeasManagementPage } from './features/ideas/BusinessIdeasManagementPage';
+import { BusinessScalingManagementPage } from './features/scaling/BusinessScalingManagementPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -59,6 +61,9 @@ export const App: React.FC = () => {
         <Route path="services" element={<ServicesModerationPage />} />
         <Route path="referrals" element={<ReferralBonusPage />} />
         <Route path="funding" element={<FundingDeskPage />} />
+        <Route path="business-ideas" element={<BusinessIdeasManagementPage />} />
+        <Route path="scaling" element={<BusinessScalingManagementPage />} />
+        <Route path="business-scaling" element={<BusinessScalingManagementPage />} />
         <Route path="requests" element={<RequestsDeskPage />} />
         <Route path="support" element={<SupportTicketsPage />} />
         <Route path="staff" element={<StaffManagementPage />} />
