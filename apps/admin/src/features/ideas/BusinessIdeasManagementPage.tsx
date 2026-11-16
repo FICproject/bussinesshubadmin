@@ -910,7 +910,7 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                   {/* Phase 7: State-Aware Action Buttons - Strict Status Validation */}
                   {(() => {
                     const st = (selectedIdea.status || selectedIdea.adminReviewStatus || '').toUpperCase();
-                    const isApproved = st === 'APPROVED' || st === 'SHARED_ON_MARKETPLACE' || st === 'ON_MARKETPLACE';
+                    const isApproved = st === 'APPROVED' || st === 'SHARED_ON_MARKETPLACE' || st === 'ON_MARKETPLACE' || Boolean(selectedIdea.marketplacePublished);
                     const isRejected = st === 'REJECTED';
                     const isUnderReview = st === 'UNDER_REVIEW';
                     const isInfoRequested = st === 'INFORMATION_REQUESTED' || st === 'INFO_REQUESTED';
