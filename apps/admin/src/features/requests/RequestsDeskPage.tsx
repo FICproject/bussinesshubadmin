@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   GitPullRequest,
   Search,
@@ -11,67 +11,26 @@ import {
   XCircle,
   Building,
   User,
-  Mail,
-  Phone,
   ShieldCheck,
   ChevronRight,
-  Sparkles,
   ExternalLink,
-  MessageSquare,
   AlertCircle,
-  Tag,
   LayoutGrid,
   List,
   X,
   ArrowRight,
   Check,
   Briefcase,
-  HelpCircle,
   Lock,
-  Ban,
-  TrendingUp,
   MapPin,
-  FileText,
   RefreshCw,
-  Lightbulb,
+  FileText,
+  DollarSign
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { SkeletonCards } from '../../components/Skeleton';
-import { containerVariants, itemVariants, pageVariants } from '../../utils/animations';
-import { ScalingConsultationModalContent } from './ScalingConsultationModalContent';
-
-export const isScalingRequest = (r: any): boolean => {
-  if (!r) return false;
-  if (r.type === 'SCALING_SUPPORT' || r.sourceModule === 'SCALING_SUPPORT') return true;
-  if (r.scalingDetails != null) return true;
-  if (typeof r.requestId === 'string' && r.requestId.startsWith('SCALE-')) return true;
-  if (typeof r.title === 'string') {
-    const t = r.title.toLowerCase();
-    if (
-      t.includes('business growth & expansion support') ||
-      t.includes('marketing & customer acquisition support') ||
-      t.includes('funding support') ||
-      t.includes('mentorship & expert guidance support') ||
-      t.includes('scaling')
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
-
-export const isIdeaRequest = (r: any): boolean => {
-  if (!r) return false;
-  if (r.type === 'BUSINESS_IDEAS' || r.sourceModule === 'BUSINESS_IDEAS') return true;
-  if (r.ideaDetails != null) return true;
-  if (typeof r.requestId === 'string' && (r.requestId.startsWith('IDEA-') || r.requestId.startsWith('BI-'))) return true;
-  if (typeof r.title === 'string' && r.title.toLowerCase().includes('idea')) return true;
-  return false;
-};
 
 export const RequestsDeskPage: React.FC = () => {
-  const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
@@ -83,53 +42,29 @@ export const RequestsDeskPage: React.FC = () => {
     return s ? s.toUpperCase() : 'ALL';
   });
 
-  // SCALING SPECIFIC STATE
-  const [activeScalingDoc, setActiveScalingDoc] = useState<any>(null);
-  const [scaleMeetingDate, setScaleMeetingDate] = useState('');
-  const [scaleMeetingTime, setScaleMeetingTime] = useState('11:00');
-  const [scaleMeetingDuration, setScaleMeetingDuration] = useState('45');
-  const [scaleMeetingMode, setScaleMeetingMode] = useState<'VIRTUAL' | 'IN_PERSON'>('VIRTUAL');
-  const [scaleMeetingLinkOrLocation, setScaleMeetingLinkOrLocation] = useState('');
-  const [scaleMeetingNotes, setScaleMeetingNotes] = useState('');
-  const [isScalingRescheduling, setIsScalingRescheduling] = useState(false);
-  const [scaleCompletionSummary, setScaleCompletionSummary] = useState('');
-  const [scaleAdminNotes, setScaleAdminNotes] = useState('');
+  // Action states
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState('');
+  const [actionErrorMsg, setActionErrorMsg] = useState('');
 
-  // Fetch Scaling Details automatically when a SCALING_SUPPORT request is opened
-  useEffect(() => {
-    if (selectedReq && isScalingRequest(selectedReq)) {
-      const targetId = selectedReq.sourceRefId || selectedReq._id;
-      apiFetch(`/api/admin/scaling/${targetId}`)
-        .then((res: any) => {
-          const doc = res?.data || res;
-          setActiveScalingDoc(doc);
-          if (doc?.meetingDetails) {
-            setScaleMeetingDate(doc.meetingDetails.date || '');
-            setScaleMeetingTime(doc.meetingDetails.time || '11:00');
-            setScaleMeetingDuration(String(doc.meetingDetails.durationMinutes || 45));
-            setScaleMeetingMode(doc.meetingDetails.mode || 'VIRTUAL');
-            setScaleMeetingLinkOrLocation(doc.meetingDetails.linkOrLocation || '');
-            setScaleMeetingNotes(doc.meetingDetails.notes || '');
-          } else {
-            setScaleMeetingDate('');
-            setScaleMeetingTime('11:00');
-            setScaleMeetingDuration('45');
-            setScaleMeetingMode('VIRTUAL');
-            setScaleMeetingLinkOrLocation('');
-            setScaleMeetingNotes('');
-          }
-          if (doc?.completionSummary) setScaleCompletionSummary(doc.completionSummary);
-          if (doc?.adminNotes) setScaleAdminNotes(doc.adminNotes);
-          setIsScalingRescheduling(false);
-        })
-        .catch((err) => {
-          console.warn('Failed to load scaling details:', err);
-          setActiveScalingDoc(selectedReq.scalingDetails || null);
-        });
-    } else {
-      setActiveScalingDoc(null);
-    }
-  }, [selectedReq]);
+  // Stage 1 Meeting form
+  const [stage1Date, setStage1Date] = useState('');
+  const [stage1Time, setStage1Time] = useState('11:00');
+  const [stage1Duration, setStage1Duration] = useState('45');
+  const [stage1Mode, setStage1Mode] = useState<'GOOGLE_MEET' | 'IN_PERSON'>('GOOGLE_MEET');
+  const [stage1LinkOrLocation, setStage1LinkOrLocation] = useState('');
+  const [stage1Notes, setStage1Notes] = useState('');
+
+  // Stage 2 Meeting form
+  const [stage2Date, setStage2Date] = useState('');
+  const [stage2Time, setStage2Time] = useState('11:00');
+  const [stage2Duration, setStage2Duration] = useState('45');
+  const [stage2Mode, setStage2Mode] = useState<'GOOGLE_MEET' | 'IN_PERSON'>('GOOGLE_MEET');
+  const [stage2LinkOrLocation, setStage2LinkOrLocation] = useState('');
+  const [stage2Notes, setStage2Notes] = useState('');
+
+  // Internal admin note input
+  const [internalNoteInput, setInternalNoteInput] = useState('');
 
   useEffect(() => {
     const s = searchParams.get('status');
@@ -139,1784 +74,1353 @@ export const RequestsDeskPage: React.FC = () => {
       setStatusFilter('ALL');
     }
   }, [searchParams]);
-  const [typeFilter, setTypeFilter] = useState('ALL');
-  const [memberResponseInput, setMemberResponseInput] = useState('');
-  const [responseStatus, setResponseStatus] = useState('RESPONDED');
-
-  // Available service providers
-  const [providers, setProviders] = useState<any[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(false);
-  const [providerSearch, setProviderSearch] = useState('');
-
-  // Meeting schedule form
-  const [isSchedulingMeeting, setIsSchedulingMeeting] = useState(false);
-  const [meetingDate, setMeetingDate] = useState('');
-  const [meetingTime, setMeetingTime] = useState('11:00');
-  const [meetingDuration, setMeetingDuration] = useState('45');
-  const [meetingLink, setMeetingLink] = useState('');
-
-  // Meeting Reschedule / Provider Availability Timing Edit Form
-  const [isEditingMeetingTime, setIsEditingMeetingTime] = useState(false);
-  const [editMeetingDate, setEditMeetingDate] = useState('');
-  const [editMeetingTime, setEditMeetingTime] = useState('11:00');
-  const [editMeetingDuration, setEditMeetingDuration] = useState('45');
-  const [editTimingRole, setEditTimingRole] = useState<'PROVIDER' | 'ADMIN'>('PROVIDER');
-  const [editTimingNote, setEditTimingNote] = useState('');
-
-  // Coordinator Note & Status
-  const [newNote, setNewNote] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [actionSuccessMsg, setActionSuccessMsg] = useState('');
 
   useEffect(() => {
     loadRequests();
-    loadProviders();
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter]);
 
   const loadRequests = async (keepSelectedId?: string) => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
-      if (typeFilter !== 'ALL') params.set('type', typeFilter);
       const qs = params.toString() ? `?${params.toString()}` : '';
-      const url = `/api/admin/requests${qs}`;
-      const data = await apiFetch(url);
-      setRequests(data);
+      const res = await apiFetch(`/api/admin/requests${qs}`);
+      const data = res?.data || res || [];
+      const list = Array.isArray(data) ? data : [];
+      setRequests(list);
       const targetId = keepSelectedId || selectedReq?._id;
       if (targetId) {
-        const updated = data.find((r: any) => r._id === targetId);
+        const updated = list.find((r: any) => r._id === targetId || r.requestId === targetId);
         setSelectedReq(updated || null);
       }
     } catch (err) {
-      console.error('Failed to load requests', err);
+      console.error('Failed to load service requests', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadProviders = async () => {
-    setLoadingProviders(true);
-    try {
-      const data = await apiFetch('/api/admin/requests/providers/list');
-      setProviders(data);
-    } catch (err) {
-      console.error('Failed to load service providers', err);
-    } finally {
-      setLoadingProviders(false);
-    }
-  };
-
   const showSuccessBanner = (msg: string) => {
     setActionSuccessMsg(msg);
-    setTimeout(() => setActionSuccessMsg(''), 4500);
+    setActionErrorMsg('');
+    setTimeout(() => setActionSuccessMsg(''), 5000);
   };
 
-  // SCALING WORKFLOW HANDLERS
-  const handleScalingMarkUnderReview = async () => {
+  const showErrorBanner = (msg: string) => {
+    setActionErrorMsg(msg);
+    setActionSuccessMsg('');
+    setTimeout(() => setActionErrorMsg(''), 6000);
+  };
+
+  // Helper when opening modal to initialize meeting fields
+  const handleSelectRequest = (reqItem: any) => {
+    setSelectedReq(reqItem);
+    setActionSuccessMsg('');
+    setActionErrorMsg('');
+    setInternalNoteInput('');
+
+    // Pre-fill Stage 1
+    if (reqItem.stage1Meeting) {
+      setStage1Date(reqItem.stage1Meeting.scheduledDate || '');
+      setStage1Time(reqItem.stage1Meeting.scheduledTime || '11:00');
+      setStage1Duration(String(reqItem.stage1Meeting.durationMinutes || 45));
+      setStage1Mode(reqItem.stage1Meeting.meetingMode || 'GOOGLE_MEET');
+      setStage1LinkOrLocation(reqItem.stage1Meeting.meetingLink || reqItem.stage1Meeting.location || '');
+      setStage1Notes(reqItem.stage1Meeting.notes || '');
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setStage1Date(tomorrow.toISOString().split('T')[0]);
+      setStage1Time('11:00');
+      setStage1Duration('45');
+      setStage1Mode('GOOGLE_MEET');
+      setStage1LinkOrLocation(`https://meet.google.com/fic-${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}`);
+      setStage1Notes('');
+    }
+
+    // Pre-fill Stage 2
+    if (reqItem.stage2Meeting) {
+      setStage2Date(reqItem.stage2Meeting.scheduledDate || '');
+      setStage2Time(reqItem.stage2Meeting.scheduledTime || '11:00');
+      setStage2Duration(String(reqItem.stage2Meeting.durationMinutes || 45));
+      setStage2Mode(reqItem.stage2Meeting.meetingMode || 'GOOGLE_MEET');
+      setStage2LinkOrLocation(reqItem.stage2Meeting.meetingLink || reqItem.stage2Meeting.location || '');
+      setStage2Notes(reqItem.stage2Meeting.notes || '');
+    } else {
+      const afterTomorrow = new Date();
+      afterTomorrow.setDate(afterTomorrow.getDate() + 2);
+      setStage2Date(afterTomorrow.toISOString().split('T')[0]);
+      setStage2Time('11:00');
+      setStage2Duration('45');
+      setStage2Mode('GOOGLE_MEET');
+      setStage2LinkOrLocation(`https://meet.google.com/fic-${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}`);
+      setStage2Notes('');
+    }
+  };
+
+  // Phase 3 Action: Send Project Information to Provider
+  const handleSendToProvider = async () => {
     if (!selectedReq) return;
-    const targetId = activeScalingDoc?._id || activeScalingDoc?.requestId || selectedReq.sourceRefId || selectedReq._id;
     setIsUpdating(true);
+    setActionErrorMsg('');
     try {
-      await apiFetch(`/api/admin/scaling/${targetId}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'UNDER_REVIEW' })
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/send-to-provider`, {
+        method: 'POST',
+        body: JSON.stringify({ customMessage: 'Project specifications reviewed and dispatched by FIC Admin.' })
       });
-      showSuccessBanner('Scaling request marked as Under Review. Member has been notified.');
-      await loadRequests(selectedReq._id);
-      const updated = await apiFetch(`/api/admin/scaling/${targetId}`);
-      setActiveScalingDoc(updated?.data || updated);
+      if (res?.success) {
+        showSuccessBanner(res.message || 'Project information sent to provider! Status updated to SENT_TO_PROVIDER.');
+        await loadRequests(targetId);
+      } else {
+        throw new Error(res?.error || 'Failed to dispatch project brief to provider');
+      }
     } catch (err: any) {
-      alert(`Failed to update status: ${err.message}`);
+      showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleScalingScheduleMeeting = async (e: React.FormEvent) => {
+  // Phase 5 Action: Schedule Stage 1 (Admin & Provider Meeting)
+  const handleScheduleStage1 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedReq) return;
-    const targetId = activeScalingDoc?._id || activeScalingDoc?.requestId || selectedReq.sourceRefId || selectedReq._id;
-
-    if (!scaleMeetingDate || !scaleMeetingTime) {
-      alert('Please enter both Meeting Date and Time.');
+    if (!stage1Date || !stage1Time) {
+      showErrorBanner('Please select meeting date and time.');
+      return;
+    }
+    if (stage1Mode === 'IN_PERSON' && !stage1LinkOrLocation.trim()) {
+      showErrorBanner('Please enter an In-Person meeting location or address.');
       return;
     }
 
-    const finalLinkOrLoc =
-      scaleMeetingLinkOrLocation.trim() ||
-      (scaleMeetingMode === 'VIRTUAL'
-        ? `https://meet.google.com/fic-scale-${Date.now().toString().slice(-6)}`
-        : 'FIC Regional Hub');
-
     setIsUpdating(true);
+    setActionErrorMsg('');
     try {
-      const endpoint = isScalingRescheduling
-        ? `/api/admin/scaling/${targetId}/reschedule-meeting`
-        : `/api/admin/scaling/${targetId}/schedule-meeting`;
-
-      await apiFetch(endpoint, {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/schedule-stage1-meeting`, {
         method: 'POST',
         body: JSON.stringify({
-          date: scaleMeetingDate,
-          time: scaleMeetingTime,
-          durationMinutes: Number(scaleMeetingDuration) || 45,
-          mode: scaleMeetingMode,
-          linkOrLocation: finalLinkOrLoc,
-          notes: scaleMeetingNotes.trim()
+          scheduledDate: stage1Date,
+          scheduledTime: stage1Time,
+          durationMinutes: Number(stage1Duration) || 45,
+          meetingMode: stage1Mode,
+          meetingLink: stage1Mode === 'GOOGLE_MEET' ? stage1LinkOrLocation.trim() : undefined,
+          location: stage1Mode === 'IN_PERSON' ? stage1LinkOrLocation.trim() : undefined,
+          notes: stage1Notes.trim()
         })
       });
-
-      showSuccessBanner(
-        isScalingRescheduling
-          ? 'Meeting rescheduled and member notified.'
-          : 'Consultation arranged successfully and member notified!'
-      );
-      setIsScalingRescheduling(false);
-      await loadRequests(selectedReq._id);
-      const updated = await apiFetch(`/api/admin/scaling/${targetId}`);
-      setActiveScalingDoc(updated?.data || updated);
+      if (res?.success) {
+        showSuccessBanner(res.message || 'Stage 1 Admin & Provider meeting scheduled successfully!');
+        await loadRequests(targetId);
+      } else {
+        throw new Error(res?.error || 'Failed to schedule Stage 1 meeting');
+      }
     } catch (err: any) {
-      alert(`Failed to schedule meeting: ${err.message}`);
+      showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleScalingCancelMeeting = async () => {
+  // Phase 5 Action: Mark Stage 1 Meeting Completed
+  const handleCompleteStage1 = async () => {
     if (!selectedReq) return;
-    const targetId = activeScalingDoc?._id || activeScalingDoc?.requestId || selectedReq.sourceRefId || selectedReq._id;
-    const reason = window.prompt(
-      'Please enter the cancellation reason (sent to member):',
-      'Coordinator schedule adjustment. We will coordinate a new session time with you shortly.'
-    );
-    if (reason === null) return;
-
-    setIsUpdating(true);
-    try {
-      await apiFetch(`/api/admin/scaling/${targetId}/cancel-meeting`, {
-        method: 'POST',
-        body: JSON.stringify({ cancellationReason: reason })
-      });
-      showSuccessBanner('Meeting cancelled. Request reverted to Under Review.');
-      await loadRequests(selectedReq._id);
-      const updated = await apiFetch(`/api/admin/scaling/${targetId}`);
-      setActiveScalingDoc(updated?.data || updated);
-    } catch (err: any) {
-      alert(`Failed to cancel meeting: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleScalingCompleteMeeting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq) return;
-    const targetId = activeScalingDoc?._id || activeScalingDoc?.requestId || selectedReq.sourceRefId || selectedReq._id;
-
-    if (!scaleCompletionSummary.trim()) {
-      alert('Please enter a completion summary / discussion outcome before completing.');
+    if (!window.confirm('Confirm marking Stage 1 (Admin & Provider Meeting) as COMPLETED? This will unlock Stage 2 with the original service requestor.')) {
       return;
     }
 
-    const confirmed = window.confirm(
-      'Mark this scaling consultation as Completed? This concludes the Scaling Request workflow.'
-    );
-    if (!confirmed) return;
+    setIsUpdating(true);
+    setActionErrorMsg('');
+    try {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/complete-stage1-meeting`, {
+        method: 'POST',
+        body: JSON.stringify({ completionNotes: 'Stage 1 consultation concluded. Provider aligned with project scope.' })
+      });
+      if (res?.success) {
+        showSuccessBanner(res.message || 'Stage 1 meeting marked COMPLETED! Stage 2 is now unlocked.');
+        await loadRequests(targetId);
+      } else {
+        throw new Error(res?.error || 'Failed to complete Stage 1 meeting');
+      }
+    } catch (err: any) {
+      showErrorBanner(err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Phase 5 Action: Schedule Stage 2 (Admin & Requestor Meeting)
+  const handleScheduleStage2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReq) return;
+    if (!stage2Date || !stage2Time) {
+      showErrorBanner('Please select meeting date and time.');
+      return;
+    }
+    if (stage2Mode === 'IN_PERSON' && !stage2LinkOrLocation.trim()) {
+      showErrorBanner('Please enter an In-Person meeting location or address.');
+      return;
+    }
 
     setIsUpdating(true);
+    setActionErrorMsg('');
     try {
-      await apiFetch(`/api/admin/scaling/${targetId}/complete-meeting`, {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/schedule-stage2-meeting`, {
         method: 'POST',
         body: JSON.stringify({
-          completionSummary: scaleCompletionSummary.trim(),
-          adminNotes: scaleAdminNotes.trim()
+          scheduledDate: stage2Date,
+          scheduledTime: stage2Time,
+          durationMinutes: Number(stage2Duration) || 45,
+          meetingMode: stage2Mode,
+          meetingLink: stage2Mode === 'GOOGLE_MEET' ? stage2LinkOrLocation.trim() : undefined,
+          location: stage2Mode === 'IN_PERSON' ? stage2LinkOrLocation.trim() : undefined,
+          notes: stage2Notes.trim()
         })
       });
-      showSuccessBanner('Scaling consultation completed! Workflow is now finished.');
-      await loadRequests(selectedReq._id);
-      const updated = await apiFetch(`/api/admin/scaling/${targetId}`);
-      setActiveScalingDoc(updated?.data || updated);
+      if (res?.success) {
+        showSuccessBanner(res.message || 'Stage 2 Admin & Requestor meeting scheduled successfully!');
+        await loadRequests(targetId);
+      } else {
+        throw new Error(res?.error || 'Failed to schedule Stage 2 meeting');
+      }
     } catch (err: any) {
-      alert(`Failed to complete meeting: ${err.message}`);
+      showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // 1. SELECT PROVIDER
-  const handleSelectProvider = async (listing: any) => {
+  // Phase 5 Action: Mark Stage 2 Meeting Completed & Close Request
+  const handleCompleteStage2 = async () => {
     if (!selectedReq) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/select-provider`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          providerId: listing.providerId?._id || listing.providerId,
-          serviceListingId: listing._id,
-        }),
-      });
-      setSelectedReq(res.data);
-      showSuccessBanner(`Assigned "${listing.providerPrivateName}" to this project. You can now send project info.`);
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Error assigning provider: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // 1.1 CANCEL / CLOSE REQUEST WITH REASON (IF PROVIDER UNAVAILABLE)
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelReasonInput, setCancelReasonInput] = useState('');
-
-  const handleCancelRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq || !cancelReasonInput.trim()) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/cancel`, {
-        method: 'POST',
-        body: JSON.stringify({
-          reason: cancelReasonInput.trim(),
-        }),
-      });
-      setSelectedReq(res.data);
-      setCancelModalOpen(false);
-      setCancelReasonInput('');
-      showSuccessBanner('Request closed / cancelled with recorded reason.');
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Error cancelling request: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // 2. INFORM PROVIDER (ANONYMIZED PROJECT BRIEF)
-  const handleInformProvider = async () => {
-    if (!selectedReq || !selectedReq.targetProviderId) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/notify-provider`, {
-        method: 'POST',
-        body: JSON.stringify({
-          dispatchChannel: 'Email, WhatsApp & Portal Notification',
-        }),
-      });
-      setSelectedReq(res.data);
-      showSuccessBanner(`Project details sent to "${selectedReq.targetProviderId.name}". Client name is kept private.`);
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Error notifying provider: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // 4. SCHEDULE MEETING
-  const handleScheduleMeeting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq || !meetingDate) {
-      alert('Please pick a date for the meeting');
+    if (!window.confirm('Confirm marking Stage 2 meeting as COMPLETED? This will close the entire Service Request workflow and mark it COMPLETED.')) {
       return;
     }
 
-    const scheduledAt = new Date(`${meetingDate}T${meetingTime}:00`);
     setIsUpdating(true);
+    setActionErrorMsg('');
     try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/schedule-meeting`, {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/complete-stage2-meeting`, {
         method: 'POST',
-        body: JSON.stringify({
-          scheduledAt: scheduledAt.toISOString(),
-          durationMinutes: parseInt(meetingDuration, 10) || 45,
-          meetingLink: meetingLink.trim() || undefined,
-        }),
+        body: JSON.stringify({ completionNotes: 'Stage 2 debrief completed with client. Service request fulfilled.' })
       });
-      setSelectedReq(res.data);
-      setIsSchedulingMeeting(false);
-      showSuccessBanner(`Meeting booked! Google Meet invites sent to both member & provider.`);
-      loadRequests(selectedReq._id);
+      if (res?.success) {
+        showSuccessBanner(res.message || 'Service request workflow concluded and marked COMPLETED!');
+        await loadRequests(targetId);
+      } else {
+        throw new Error(res?.error || 'Failed to complete Stage 2 meeting');
+      }
     } catch (err: any) {
-      alert(`Failed to schedule meeting: ${err.message}`);
+      showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // 5. RESCHEDULE / EDIT TIMING (Provider Availability Adjustment)
-  const handleRescheduleMeeting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq || !editMeetingDate) {
-      alert('Please select the adjusted meeting date');
-      return;
-    }
-
-    const scheduledAt = new Date(`${editMeetingDate}T${editMeetingTime}:00`);
+  // Add Internal Admin Note
+  const handleAddInternalNote = async () => {
+    if (!selectedReq || !internalNoteInput.trim()) return;
     setIsUpdating(true);
     try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}/reschedule-meeting`, {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          scheduledAt: scheduledAt.toISOString(),
-          durationMinutes: parseInt(editMeetingDuration, 10) || 45,
-          updatedByRole: editTimingRole,
-          note: editTimingNote.trim() || undefined,
-        }),
+        body: JSON.stringify({ note: internalNoteInput.trim() })
       });
-      setSelectedReq(res.data);
-      setIsEditingMeetingTime(false);
-      setEditTimingNote('');
-      showSuccessBanner(`Meeting time updated based on ${editTimingRole === 'PROVIDER' ? 'provider' : 'admin'} availability!`);
-      loadRequests(selectedReq._id);
+      if (res?.success) {
+        showSuccessBanner('Note saved to request audit log.');
+        setInternalNoteInput('');
+        await loadRequests(targetId);
+      }
     } catch (err: any) {
-      alert(`Failed to adjust meeting timing: ${err.message}`);
+      showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Append Coordinator Note
-  const handleAppendNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq || !newNote.trim()) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          note: newNote.trim(),
-        }),
-      });
-      setSelectedReq(res.data);
-      setNewNote('');
-      showSuccessBanner('Note saved to history.');
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Note update failed: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleSendAdminResponse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq || !memberResponseInput.trim()) return;
-    setIsUpdating(true);
-    try {
-      const res = await apiFetch(`/api/admin/requests/${selectedReq._id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          adminResponse: memberResponseInput.trim(),
-          status: responseStatus,
-        }),
-      });
-      setSelectedReq(res.data);
-      setMemberResponseInput('');
-      showSuccessBanner('Response sent and notified to member.');
-      loadRequests(selectedReq._id);
-    } catch (err: any) {
-      alert(`Failed to send response: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
+  // Filtered requests list
   const filteredRequests = useMemo(() => {
-    if (!searchQuery.trim()) return requests;
-    const q = searchQuery.toLowerCase().trim();
-    return requests.filter((r) => {
-      const matchTitle = r.title?.toLowerCase().includes(q);
-      const matchDesc = r.description?.toLowerCase().includes(q);
-      const matchRequester = r.requesterName?.toLowerCase().includes(q);
-      const matchEmail = r.requesterEmail?.toLowerCase().includes(q);
-      const matchType = r.type?.toLowerCase().includes(q);
-      return matchTitle || matchDesc || matchRequester || matchEmail || matchType;
-    });
+    let list = requests;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((r) =>
+        r.title?.toLowerCase().includes(q) ||
+        r.requestId?.toLowerCase().includes(q) ||
+        r.description?.toLowerCase().includes(q) ||
+        r.requesterName?.toLowerCase().includes(q) ||
+        r.requesterEmail?.toLowerCase().includes(q) ||
+        (r.targetProviderId as any)?.name?.toLowerCase().includes(q) ||
+        (r.targetServiceId as any)?.title?.toLowerCase().includes(q)
+      );
+    }
+    return list;
   }, [requests, searchQuery]);
 
-  const filteredProviders = providers.filter((p) => {
-    if (!providerSearch) return true;
-    const q = providerSearch.toLowerCase();
-    return (
-      p.title?.toLowerCase().includes(q) ||
-      p.providerPrivateName?.toLowerCase().includes(q) ||
-      p.categoryName?.toLowerCase().includes(q)
-    );
-  });
+  // Counts for pills
+  const counts = useMemo(() => {
+    const res: Record<string, number> = { ALL: requests.length };
+    requests.forEach((r) => {
+      const st = r.status || 'SUBMITTED';
+      res[st] = (res[st] || 0) + 1;
+    });
+    return res;
+  }, [requests]);
+
+  // Helper for status badge
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'SUBMITTED':
+      case 'NEW':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            Submitted
+          </span>
+        );
+      case 'SENT_TO_PROVIDER':
+      case 'AWAITING_PROVIDER_RESPONSE':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+            Sent to Provider
+          </span>
+        );
+      case 'PROVIDER_ACCEPTED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
+            Provider Accepted
+          </span>
+        );
+      case 'PROVIDER_REJECTED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+            Provider Declined
+          </span>
+        );
+      case 'ADMIN_PROVIDER_MEETING_SCHEDULED':
+      case 'MEETING_CONFIRMED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            Stage 1 Call Scheduled
+          </span>
+        );
+      case 'ADMIN_PROVIDER_MEETING_COMPLETED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            Stage 1 Completed
+          </span>
+        );
+      case 'ADMIN_REQUESTOR_MEETING_SCHEDULED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            Stage 2 Call Scheduled
+          </span>
+        );
+      case 'COMPLETED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            Completed
+          </span>
+        );
+      case 'CANCELLED':
+      case 'REJECTED':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            Cancelled
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            {status}
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Top Header & View Controls */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      {/* 1. Header with Title & Context */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center space-x-2.5">
-            <span className="p-2 rounded-xl bg-indigo-500/10 text-[var(--accent-primary)] border border-indigo-500/20 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-xs">
               <GitPullRequest className="w-5 h-5" />
-            </span>
-            <span>FIC Client Service Desk</span>
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Connect members with expert service providers: Select a provider, share the project requirements, and set up a call once accepted.
-          </p>
-        </div>
-
-        {/* View Mode Toggle (Grid / List) */}
-        <div className="flex items-center space-x-2 shrink-0">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono mr-1">
-            View:
-          </span>
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200/80 dark:border-slate-700/80">
-            <button
-              onClick={() => setViewMode('grid')}
-              title="Grid View"
-              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'grid'
-                  ? 'bg-white dark:bg-slate-900 text-[var(--accent-primary)] shadow-xs font-bold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Grid</span>
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              title="List View"
-              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'list'
-                  ? 'bg-white dark:bg-slate-900 text-[var(--accent-primary)] shadow-xs font-bold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>List</span>
-            </button>
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                <span>Service Requests</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800">
+                  {requests.length} Requests
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Manage member service inquiries, review client specifications, coordinate with identified service providers, and host 2-stage introductory consultations.
+              </p>
+            </div>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => loadRequests()}
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
-      {/* Global Success Banner */}
+      {/* 2. Global Feedback Banner */}
       {actionSuccessMsg && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center space-x-2 shadow-2xs"
-        >
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{actionSuccessMsg}</span>
-        </motion.div>
+        </div>
+      )}
+      {actionErrorMsg && (
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300 font-medium">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{actionErrorMsg}</span>
+        </div>
       )}
 
-      {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by project name, description, or member..."
-            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[var(--accent-primary)] shadow-2xs"
-          />
+      {/* 3. Search & Filter Bar */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="relative w-full sm:w-96">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search request ID, service title, member, provider..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-0.5 bg-slate-50 dark:bg-slate-800">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title="List View"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+                title="Grid View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] shadow-2xs font-medium"
-        >
-          <option value="ALL">All Categories</option>
-          <option value="SERVICE_INQUIRY">Marketplace Services</option>
-          <option value="BUSINESS_IDEAS">Business Ideas</option>
-          <option value="SCALING_SUPPORT">Scaling Support</option>
-          <option value="INVESTMENT_INTEREST">Investment Interest</option>
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            const next = e.target.value;
-            setStatusFilter(next);
-            const newParams = new URLSearchParams(searchParams);
-            if (next === 'ALL') {
-              newParams.delete('status');
-            } else {
-              newParams.set('status', next);
-            }
-            setSearchParams(newParams, { replace: true });
-          }}
-          className="text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] shadow-2xs font-medium"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active Requests (Pending Action)</option>
-          <option value="NEW">New Requests</option>
-          <option value="UNDER_REVIEW">Under Review</option>
-          <option value="ASSIGNED">Assigned</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="INFORMATION_REQUIRED">Information Required</option>
-          <option value="RESPONDED">Responded</option>
-          <option value="PROVIDER_CONTACTED">Provider Contacted</option>
-          <option value="MEETING_SCHEDULED">Meeting Scheduled</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+        {/* Status Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 text-xs">
+          {[
+            { id: 'ALL', label: 'All Requests' },
+            { id: 'SUBMITTED', label: 'New Submitted' },
+            { id: 'SENT_TO_PROVIDER', label: 'Sent to Provider' },
+            { id: 'PROVIDER_ACCEPTED', label: 'Provider Accepted' },
+            { id: 'ADMIN_PROVIDER_MEETING_SCHEDULED', label: 'Stage 1 Meeting' },
+            { id: 'ADMIN_REQUESTOR_MEETING_SCHEDULED', label: 'Stage 2 Meeting' },
+            { id: 'COMPLETED', label: 'Completed' },
+            { id: 'PROVIDER_REJECTED', label: 'Provider Declined' },
+          ].map((pill) => {
+            const count = counts[pill.id] || 0;
+            const isActive = statusFilter === pill.id;
+            return (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(pill.id);
+                  setSearchParams(pill.id === 'ALL' ? {} : { status: pill.id });
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span>{pill.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* MAIN CONTENT AREA: LIST VIEW OR GRID VIEW */}
+      {/* 4. Requests List / Table */}
       {loading ? (
-        <SkeletonCards count={6} gridCols="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
+        <SkeletonCards count={6} />
       ) : filteredRequests.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-xs">
-          <GitPullRequest className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3 opacity-60" />
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No requests found</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            {searchQuery ? `No requests match "${searchQuery}".` : 'No member requests in the queue.'}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 mx-auto flex items-center justify-center">
+            <GitPullRequest className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+            No Service Requests Found
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            {searchQuery
+              ? 'No requests matched your search term.'
+              : 'There are no service inquiries in this filter state.'}
           </p>
         </div>
       ) : viewMode === 'list' ? (
-        /* ================= LIST VIEW (DEFAULT) ================= */
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden shadow-xs"
-        >
-          {filteredRequests.map((r, idx) => (
-            <motion.div
-              key={r._id}
-              variants={itemVariants}
-              onClick={() => setSelectedReq(r)}
-              className="p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              <div className="flex items-start space-x-3.5 flex-1 min-w-0">
-                <span className="font-mono text-xs font-bold text-slate-400 dark:text-slate-500 w-6 pt-1 shrink-0">
-                  #{idx + 1}
-                </span>
-
-                <div className="space-y-1 flex-1 min-w-0">
-                  <div className="flex items-center space-x-2.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">
-                      {r.type?.replace('_', ' ')}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'MEETING_SCHEDULED'
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                          : r.status === 'PROVIDER_CONTACTED'
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                            : r.status === 'COMPLETED'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                        }`}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-mono text-[11px] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="py-3 px-4">Request ID</th>
+                  <th className="py-3 px-4">Requested Service</th>
+                  <th className="py-3 px-4">Requestor (Client)</th>
+                  <th className="py-3 px-4">Assigned Service Provider</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Submitted</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
+                {filteredRequests.map((req) => {
+                  const sListing = req.targetServiceId;
+                  const pMember = req.targetProviderId;
+                  return (
+                    <tr
+                      key={req._id}
+                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      {r.status === 'PROVIDER_CONTACTED'
-                        ? 'Brief Sent'
-                        : r.status === 'MEETING_SCHEDULED'
-                          ? 'Call Booked'
-                          : r.status?.replace('_', ' ')}
+                      <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                        {req.requestId || `SR-${req._id.slice(-6).toUpperCase()}`}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-900 dark:text-slate-100 max-w-xs truncate">
+                          {sListing?.title || req.title}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {sListing?.categoryName || req.requesterCategory || 'Marketplace'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                          {req.requesterName}
+                        </div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                          <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                          <span>Confidential Client</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100">
+                          {pMember?.name || sListing?.providerName || 'Identified Provider'}
+                        </div>
+                        <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          Auto-bound Listing Owner
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {renderStatusBadge(req.status)}
+                      </td>
+                      <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">
+                        {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : 'Recently'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRequest(req)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer text-[11px] inline-flex items-center gap-1"
+                        >
+                          <span>Inspect & Coordinate</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredRequests.map((req) => {
+            const sListing = req.targetServiceId;
+            const pMember = req.targetProviderId;
+            return (
+              <div
+                key={req._id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4 hover:border-indigo-500/40 transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                      {req.requestId || `SR-${req._id.slice(-6).toUpperCase()}`}
                     </span>
+                    {renderStatusBadge(req.status)}
                   </div>
 
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-[var(--accent-primary)] transition-colors">
-                    {r.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{r.description}</p>
-                </div>
-              </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                      {sListing?.title || req.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      {sListing?.categoryName || 'Marketplace Service'}
+                    </p>
+                  </div>
 
-              <div className="flex items-center justify-between md:justify-end gap-6 md:w-5/12 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800 text-xs">
-                <div className="space-y-0.5 min-w-0">
-                  <p className="text-[11px] text-slate-400">Requesting Member</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
-                    {r.requesterName}
+                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                    {req.description}
                   </p>
-                </div>
 
-                <div className="space-y-0.5 min-w-0">
-                  <p className="text-[11px] text-slate-400">
-                    {isScalingRequest(r) ? 'Scaling Advisory' : isIdeaRequest(r) ? 'Idea Innovation' : 'Matched Provider'}
-                  </p>
-                  <p className={`font-semibold truncate max-w-[150px] ${
-                      isScalingRequest(r)
-                        ? 'text-purple-600 dark:text-purple-400'
-                        : isIdeaRequest(r)
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                    }`}>
-                    {isScalingRequest(r)
-                      ? (r.scalingDetails?.scalingSupportType || 'Direct FIC Advisory')
-                      : isIdeaRequest(r)
-                      ? 'Universal Network Hub'
-                      : (r.targetProviderId?.name || 'Not yet assigned')}
-                  </p>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Client:</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{req.requesterName}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Service Provider:</span>
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                        {pMember?.name || sListing?.providerName || 'Identified Provider'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-3 shrink-0">
-                  <span className="font-mono text-[11px] text-slate-400">
-                    {new Date(r.createdAt).toLocaleDateString()}
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : 'Recently'}
                   </span>
                   <button
                     type="button"
-                    className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white font-semibold text-xs hover:opacity-90 transition-opacity shadow-2xs"
+                    onClick={() => handleSelectRequest(req)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-2xs text-[11px] flex items-center gap-1 cursor-pointer"
                   >
-                    Open
+                    <span>Inspect</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      ) : (
-        /* ================= GRID VIEW ================= */
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
-        >
-          {filteredRequests.map((r, idx) => (
-            <motion.div
-              key={r._id}
-              variants={itemVariants}
-              whileHover={{ y: -3, transition: { duration: 0.15 } }}
-              onClick={() => setSelectedReq(r)}
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between hover:shadow-md hover:border-[var(--accent-primary)]/50 cursor-pointer transition-all group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                      #{idx + 1}
-                    </span>
-                    <span className="text-[11px] font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2.5 py-0.5 rounded-full">
-                      {r.type?.replace('_', ' ')}
+            );
+          })}
+        </div>
+      )}
+
+      {/* 5. Service Request Inspection & 2-Stage Coordination Modal */}
+      {selectedReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 my-8 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-4.5 bg-gradient-to-r from-[#1A1646] via-[#1E1B4B] to-[#0F172A] text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white/10 text-white border border-white/20">
+                  <GitPullRequest className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base tracking-tight text-white">
+                      {selectedReq.title || (selectedReq.targetServiceId as any)?.title || 'Service Request Coordination'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
+                      {selectedReq.requestId || `SR-${selectedReq._id.slice(-6).toUpperCase()}`}
                     </span>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'MEETING_SCHEDULED'
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                        : r.status === 'PROVIDER_CONTACTED'
-                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                          : r.status === 'COMPLETED'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                      }`}
-                  >
-                    {r.status === 'PROVIDER_CONTACTED'
-                      ? 'Brief Sent'
-                      : r.status === 'MEETING_SCHEDULED'
-                        ? 'Call Booked'
-                        : r.status?.replace('_', ' ')}
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-[var(--accent-primary)] transition-colors line-clamp-1">
-                    {r.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                    {r.description}
+                  <p className="text-[11px] text-indigo-200">
+                    FIC Intermediary Coordination &bull; Two-Stage Consultation Governance
                   </p>
                 </div>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400">Requesting Member:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[160px]">
-                    {r.requesterName}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400">
-                    {isScalingRequest(r) ? 'Advisory Mode:' : isIdeaRequest(r) ? 'Coordination:' : 'Matched Provider:'}
-                  </span>
-                  <span className={`font-semibold truncate max-w-[160px] ${
-                      isScalingRequest(r)
-                        ? 'text-purple-600 dark:text-purple-400'
-                        : isIdeaRequest(r)
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                    }`}>
-                    {isScalingRequest(r)
-                      ? 'Direct FIC Consultation'
-                      : isIdeaRequest(r)
-                      ? 'Universal Marketplace'
-                      : (r.targetProviderId?.name || 'Not yet assigned')}
-                  </span>
-                </div>
-
-                <div className="pt-1 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                  <span>{new Date(r.createdAt).toLocaleDateString()}</span>
-                  <span className="text-[var(--accent-primary)] font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                    {isScalingRequest(r) ? 'Review & Meet' : isIdeaRequest(r) ? 'Review & Publish' : 'Connect & Schedule'} <ArrowRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* ================= CENTRALIZED SEPARATE WORKFLOW TAB / MODAL ================= */}
-      <AnimatePresence>
-        {selectedReq && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Smooth animated backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.65 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedReq(null)}
-              className="fixed inset-0 bg-slate-950 backdrop-blur-sm"
-            />
-
-            {/* Centralized Card Container */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 16 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-              className="relative z-50 w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              {(() => {
-                const isScaling = isScalingRequest(selectedReq);
-                const isIdea = isIdeaRequest(selectedReq);
-                const scalingDoc = activeScalingDoc || selectedReq.scalingDetails;
-                const currentStatus = isScaling ? (scalingDoc?.status || selectedReq.status) : selectedReq.status;
-
-                return (
-                  <>
-                    {/* Modal Header */}
-                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
-                      <div className="flex items-center space-x-3.5">
-                        <div
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold shadow-2xs border ${
-                            isScaling
-                              ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800'
-                              : isIdea
-                              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                              : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20'
-                          }`}
-                        >
-                          {isScaling ? (
-                            <TrendingUp className="w-5 h-5" />
-                          ) : isIdea ? (
-                            <Lightbulb className="w-5 h-5" />
-                          ) : (
-                            <GitPullRequest className="w-5 h-5" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wider">
-                              {isScaling
-                                ? 'Business Scaling Consultation Desk'
-                                : isIdea
-                                ? 'Business Ideas & Innovation Desk'
-                                : 'Service Request Management'}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                                currentStatus === 'MEETING_COMPLETED' || currentStatus === 'COMPLETED'
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : currentStatus === 'MEETING_SCHEDULED'
-                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                                  : currentStatus === 'UNDER_REVIEW'
-                                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                  : currentStatus === 'PROVIDER_CONTACTED'
-                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                                  : 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
-                              }`}
-                            >
-                              {currentStatus === 'PROVIDER_CONTACTED'
-                                ? 'Brief Sent'
-                                : currentStatus === 'MEETING_SCHEDULED'
-                                ? 'Call Booked'
-                                : currentStatus === 'SUBMITTED'
-                                ? 'Submitted'
-                                : currentStatus?.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                            {isScaling
-                              ? scalingDoc?.businessName
-                                ? `${scalingDoc.businessName} — ${scalingDoc.scalingSupportType || 'Scaling Advisory'}`
-                                : selectedReq.title
-                              : selectedReq.title}
-                          </h3>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isScaling ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate('/scaling')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/50 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors flex items-center gap-1.5"
-                            title="Open in Dedicated Scaling Desk"
-                          >
-                            <span>Dedicated Desk</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-                        ) : isIdea ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate('/business-ideas')}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition-colors flex items-center gap-1.5"
-                            title="Open in Dedicated Business Ideas Desk"
-                          >
-                            <span>Ideas Desk</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReq(null)}
-                          className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Modal Body (Scrollable) */}
-                    <div className="p-6 overflow-y-auto space-y-6 flex-1">
-                      {isScaling ? (
-                        <ScalingConsultationModalContent
-                          selectedReq={selectedReq}
-                          scalingDoc={scalingDoc}
-                          isUpdating={isUpdating}
-                          onMarkUnderReview={handleScalingMarkUnderReview}
-                          onScheduleMeeting={handleScalingScheduleMeeting}
-                          onCancelMeeting={handleScalingCancelMeeting}
-                          onCompleteMeeting={handleScalingCompleteMeeting}
-                          meetingDate={scaleMeetingDate}
-                          setMeetingDate={setScaleMeetingDate}
-                          meetingTime={scaleMeetingTime}
-                          setMeetingTime={setScaleMeetingTime}
-                          meetingDuration={scaleMeetingDuration}
-                          setMeetingDuration={setScaleMeetingDuration}
-                          meetingMode={scaleMeetingMode}
-                          setMeetingMode={setScaleMeetingMode}
-                          meetingLinkOrLocation={scaleMeetingLinkOrLocation}
-                          setMeetingLinkOrLocation={setScaleMeetingLinkOrLocation}
-                          meetingNotes={scaleMeetingNotes}
-                          setMeetingNotes={setScaleMeetingNotes}
-                          isRescheduling={isScalingRescheduling}
-                          setIsRescheduling={setIsScalingRescheduling}
-                          completionSummary={scaleCompletionSummary}
-                          setCompletionSummary={setScaleCompletionSummary}
-                          adminNotes={scaleAdminNotes}
-                          setAdminNotes={setScaleAdminNotes}
-                        />
-                      ) : isIdea ? (
-                        <div className="space-y-4">
-                          {/* Requesting Member Card */}
-                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-bold text-sm flex items-center justify-center">
-                                <User className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                  {selectedReq.requesterName}
-                                </p>
-                                <p className="text-xs text-slate-400 font-mono">
-                                  {selectedReq.requesterEmail} •{' '}
-                                  {selectedReq.requesterPhone || selectedReq.requesterId?.phone || '+91 Verified Member'}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-xs font-semibold px-3 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                              <span>Business Idea Submission ({selectedReq.requesterCategory || 'Enterprise'})</span>
-                            </span>
-                          </div>
-
-                          {/* Idea Concept & Scope */}
-                          <div className="space-y-1.5">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
-                              Idea Concept & Scope
-                            </span>
-                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/70 dark:border-slate-800">
-                              {selectedReq.description}
-                            </p>
-                          </div>
-
-                          {/* Dedicated Business Ideas Management Banner */}
-                          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-between flex-wrap gap-3">
-                            <div className="space-y-1 text-xs">
-                              <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                                <Lightbulb className="w-4 h-4 text-amber-600" />
-                                <span>Full Idea Management & Network Collaboration Desk</span>
-                              </span>
-                              <p className="text-[11px] text-amber-800/80 dark:text-amber-300">
-                                Review details, approve for Universal Marketplace publishing, evaluate interested member collaboration offers, and send official coordination updates.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => navigate('/business-ideas')}
-                              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs"
-                            >
-                              <span>Open Ideas Desk</span>
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {/* Requesting Member Card (Private/Confidential) */}
-                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-bold text-sm flex items-center justify-center">
-                                <User className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                  {selectedReq.requesterName}
-                                </p>
-                                <p className="text-xs text-slate-400 font-mono">
-                                  {selectedReq.requesterEmail} • {selectedReq.requesterId?.phone || '+91 Verified Member'}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-xs font-semibold px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800 flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
-                              <span>Private Client (Hidden from Provider)</span>
-                            </span>
-                          </div>
-
-                          {/* Project Requirements & Scope */}
-                          <div className="space-y-1.5">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
-                              Project Requirements
-                            </span>
-                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/70 dark:border-slate-800">
-                              {selectedReq.description}
-                            </p>
-                          </div>
-
-                          {/* 4-Step Visual Progress Bar */}
-                          <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                              <span>4-Step Coordination Process</span>
-                            </span>
-
-                            <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                              {/* Step 1 */}
-                              <div
-                                className={`p-2.5 rounded-xl border font-semibold transition-all ${selectedReq.targetProviderId
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                                    : 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-[var(--accent-primary)]'
-                                  }`}
-                              >
-                                <div className="font-mono text-[10px] text-slate-400">Step 1</div>
-                                <div className="truncate">Choose Provider</div>
-                              </div>
-
-                              {/* Step 2 */}
-                              <div
-                                className={`p-2.5 rounded-xl border font-semibold transition-all ${selectedReq.providerNotifiedAt
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                                    : selectedReq.targetProviderId
-                                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                                      : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                                  }`}
-                              >
-                                <div className="font-mono text-[10px] text-slate-400">Step 2</div>
-                                <div className="truncate">Send Project Info</div>
-                              </div>
-
-                              {/* Step 3 */}
-                              <div
-                                className={`p-2.5 rounded-xl border font-semibold transition-all ${selectedReq.providerResponse === 'ACCEPTED'
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                                    : selectedReq.providerResponse === 'DECLINED'
-                                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300'
-                                      : selectedReq.providerNotifiedAt
-                                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                                        : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                                  }`}
-                              >
-                                <div className="font-mono text-[10px] text-slate-400">Step 3</div>
-                                <div className="truncate">
-                                  {selectedReq.providerResponse === 'ACCEPTED'
-                                    ? 'Accepted'
-                                    : selectedReq.providerResponse === 'DECLINED'
-                                      ? 'Declined (Change)'
-                                      : 'Waiting for Reply'}
-                                </div>
-                              </div>
-
-                              {/* Step 4 */}
-                              <div
-                                className={`p-2.5 rounded-xl border font-semibold transition-all ${selectedReq.status === 'MEETING_SCHEDULED'
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                                    : selectedReq.providerResponse === 'ACCEPTED'
-                                      ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300'
-                                      : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                                  }`}
-                              >
-                                <div className="font-mono text-[10px] text-slate-400">Step 4</div>
-                                <div className="truncate">Book Meeting</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* STEP 1: SERVICE PROVIDER SELECTION */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
-                                <span>1. Qualified Service Providers</span>
-                                <span className="text-[10px] text-slate-400 font-normal">({filteredProviders.length} available)</span>
-                              </h4>
-                              {selectedReq.targetProviderId && (
-                                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Assigned
-                                </span>
-                              )}
-                            </div>
-
-                            {selectedReq.targetProviderId ? (
-                              <div className="p-4 rounded-2xl border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-950/30 flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                                      {selectedReq.targetProviderId.name}
-                                    </span>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-200/60 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
-                                      Assigned to Project
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-mono">
-                                    {selectedReq.targetProviderId.email} • {selectedReq.targetProviderId.phone || '+91 Verified Provider'}
-                                  </p>
-                                  {selectedReq.targetServiceId && (
-                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                                      Listing: <span className="font-semibold">{selectedReq.targetServiceId.title}</span> ({selectedReq.targetServiceId.categoryName})
-                                    </p>
-                                  )}
-                                </div>
-
-                                {selectedReq.status !== 'CANCELLED' && selectedReq.status !== 'COMPLETED' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCancelReasonInput('');
-                                      setCancelModalOpen(true);
-                                    }}
-                                    disabled={isUpdating}
-                                    className="text-xs text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors disabled:opacity-50"
-                                  >
-                                    <Ban className="w-3.5 h-3.5" />
-                                    <span>Close Request</span>
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="relative">
-                                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                  <input
-                                    type="text"
-                                    value={providerSearch}
-                                    onChange={(e) => setProviderSearch(e.target.value)}
-                                    placeholder="Search providers by skill, business name, or specialty..."
-                                    className="w-full text-xs pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[var(--accent-primary)]"
-                                  />
-                                </div>
-
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl max-h-52 overflow-y-auto">
-                                  {filteredProviders.map((prov) => (
-                                    <div
-                                      key={prov._id}
-                                      className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex items-center justify-between gap-3 text-xs"
-                                    >
-                                      <div className="space-y-0.5 min-w-0">
-                                        <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{prov.title}</p>
-                                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                          Provider:{' '}
-                                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            {prov.providerPrivateName || prov.providerId?.name}
-                                          </span>{' '}
-                                          ({prov.categoryName})
-                                        </p>
-                                        <p className="text-[10px] text-slate-400 font-mono">
-                                          Typical Pricing: {prov.pricingEstimate || 'Direct Quote'} • {prov.locationState || 'All India'}
-                                        </p>
-                                      </div>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSelectProvider(prov)}
-                                        disabled={isUpdating}
-                                        className="shrink-0 px-3.5 py-1.5 rounded-xl bg-[var(--accent-primary)] text-white font-semibold text-xs hover:opacity-90 transition-opacity shadow-2xs"
-                                      >
-                                        Assign Provider
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* STEP 2: INFORM PROVIDER WITH ANONYMIZED PROJECT BRIEF */}
-                          {selectedReq.targetProviderId && (
-                            <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                                  <span>2. Send Project Overview to Provider</span>
-                                </h4>
-                                {selectedReq.providerNotifiedAt && (
-                                  <span className="text-xs text-slate-400 font-mono">
-                                    Sent at {new Date(selectedReq.providerNotifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 space-y-3">
-                                <div className="flex items-start space-x-2.5 text-xs text-slate-600 dark:text-slate-300">
-                                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="font-semibold text-slate-800 dark:text-slate-200">
-                                      Client identity is strictly protected.
-                                    </p>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                      We only share the project title and work requirements with <span className="font-bold text-slate-900 dark:text-slate-100">{selectedReq.targetProviderId.name}</span>. The member's name and phone number will not be disclosed.
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Preview of what provider actually receives */}
-                                <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 text-xs space-y-1 shadow-2xs">
-                                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-bold">
-                                    What the provider will see:
-                                  </span>
-                                  <p className="font-bold text-slate-800 dark:text-slate-100">{selectedReq.title}</p>
-                                  <p className="text-slate-600 dark:text-slate-300 text-[11px]">{selectedReq.description}</p>
-                                  <div className="flex items-center space-x-3 pt-1 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-                                    <span>• Client Name: [Hidden by FIC]</span>
-                                    <span>• Contact Info: [Hidden by FIC]</span>
-                                  </div>
-                                </div>
-
-                                {/* Read-Only Provider Decision & Response Audit Section */}
-                                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">
-                                      Provider Response & Audit
-                                    </span>
-                                    <span className="text-[10px] text-slate-400 font-mono">
-                                      {selectedReq.providerRespondedAt || selectedReq.providerResponseAt ? (
-                                        `Responded: ${new Date(selectedReq.providerRespondedAt || selectedReq.providerResponseAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
-                                      ) : (
-                                        'Waiting for provider decision'
-                                      )}
-                                    </span>
-                                  </div>
-
-                                  {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED' ? (
-                                    <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                                      <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-200 font-bold text-xs">
-                                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                          <span>Accepted by Provider: {selectedReq.targetProviderId?.name}</span>
-                                        </div>
-                                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
-                                          Decision: ACCEPTED
-                                        </span>
-                                      </div>
-
-                                      {selectedReq.providerResponseMessage && (
-                                        <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 text-xs text-slate-700 dark:text-slate-300">
-                                          <span className="font-bold text-[10px] uppercase text-emerald-600 block mb-0.5">Provider Note / Clarification:</span>
-                                          "{selectedReq.providerResponseMessage}"
-                                        </div>
-                                      )}
-
-                                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                                        Provider has confirmed readiness for this project requirement. You can now coordinate the introduction call in Step 3 below.
-                                      </p>
-                                    </div>
-                                  ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED' ? (
-                                    <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-2">
-                                      <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center space-x-2 text-rose-800 dark:text-rose-200 font-bold text-xs">
-                                          <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                                          <span>Declined by Provider: {selectedReq.targetProviderId?.name}</span>
-                                        </div>
-                                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-rose-100 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700">
-                                          Decision: DECLINED
-                                        </span>
-                                      </div>
-
-                                      <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
-                                        <span className="font-bold text-[10px] uppercase text-rose-600 block mb-0.5">Stated Rejection Reason:</span>
-                                        "{selectedReq.providerRejectionReason || selectedReq.providerResponseMessage || 'Provider is currently unavailable or unable to take on this scope.'}"
-                                      </div>
-
-                                      <p className="text-[11px] text-rose-600/90 dark:text-rose-400">
-                                        The provider cannot take on this request. Please formulate an official response to the member below or close the request with a recorded reason.
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-2">
-                                      <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-200 font-bold text-xs">
-                                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                          <span>{selectedReq.providerNotifiedAt ? 'Awaiting Provider Decision' : 'Project Info Not Dispatched Yet'}</span>
-                                        </div>
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                                          {selectedReq.providerNotifiedAt ? 'Status: AWAITING_RESPONSE' : 'Status: READY_TO_SEND'}
-                                        </span>
-                                      </div>
-                                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                                        {selectedReq.providerNotifiedAt
-                                          ? `Project details were dispatched to provider ${selectedReq.targetProviderId?.name}. Admin cannot override provider decision — provider must accept or decline from their member portal.`
-                                          : `Click below to share the anonymized requirements with ${selectedReq.targetProviderId?.name}.`}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {/* Dispatch / Re-send Project Overview Button */}
-                                  <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={handleInformProvider}
-                                      disabled={isUpdating}
-                                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex items-center space-x-2 transition-all shadow-xs active:scale-95 disabled:opacity-50"
-                                    >
-                                      <Send className="w-3.5 h-3.5" />
-                                      <span>
-                                        {selectedReq.providerNotifiedAt ? 'Re-send Project Info & Reminder' : 'Send Project Info to Provider'}
-                                      </span>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* STEP 3 & 4: SCHEDULE MEETING (LOCKED UNTIL PROVIDER ACCEPTANCE) */}
-                          {selectedReq.targetProviderId && !(selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && (
-                            <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5 opacity-60">
-                                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                  <span>3. Book Introduction Call</span>
-                                </h4>
-                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900">
-                                  Locked Until Acceptance
-                                </span>
-                              </div>
-                              <div className="p-3.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 flex items-center space-x-2.5 text-xs text-slate-500 dark:text-slate-400">
-                                <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                                <span>Introduction meeting booking unlocks automatically once the service provider accepts the project.</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {selectedReq.targetProviderId && (selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && (
-                            <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
-                                  <Calendar className="w-3.5 h-3.5 text-purple-600" />
-                                  <span>3. Book Introduction Call</span>
-                                </h4>
-                                {selectedReq.scheduledMeetingId && (
-                                  <span className="text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">
-                                    Meeting Confirmed
-                                  </span>
-                                )}
-                              </div>
-
-                              {selectedReq.scheduledMeetingId ? (
-                                <div className="p-4 rounded-2xl border border-purple-300 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/30 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                                      {selectedReq.scheduledMeetingId.title || 'Client & Provider Introduction Call'}
-                                    </span>
-                                    <span className="text-xs font-mono font-semibold text-purple-700 dark:text-purple-300">
-                                      {new Date(selectedReq.scheduledMeetingId.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                                    {selectedReq.scheduledMeetingId.description}
-                                  </p>
-
-                                  <div className="pt-2 flex items-center justify-between flex-wrap gap-2 border-t border-purple-200 dark:border-purple-900/60">
-                                    {selectedReq.scheduledMeetingId.meetingLink ? (
-                                      <a
-                                        href={selectedReq.scheduledMeetingId.meetingLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center space-x-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400"
-                                      >
-                                        <Video className="w-3.5 h-3.5" />
-                                        <span>Join Google Meet Call</span>
-                                        <ExternalLink className="w-3 h-3" />
-                                      </a>
-                                    ) : (
-                                      <span className="text-xs text-slate-400">Meeting link generated</span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const d = new Date(selectedReq.scheduledMeetingId.scheduledAt);
-                                        const yyyy = d.getFullYear();
-                                        const mm = String(d.getMonth() + 1).padStart(2, '0');
-                                        const dd = String(d.getDate()).padStart(2, '0');
-                                        const hh = String(d.getHours()).padStart(2, '0');
-                                        const min = String(d.getMinutes()).padStart(2, '0');
-                                        setEditMeetingDate(`${yyyy}-${mm}-${dd}`);
-                                        setEditMeetingTime(`${hh}:${min}`);
-                                        setEditMeetingDuration(String(selectedReq.scheduledMeetingId.durationMinutes || 45));
-                                        setIsEditingMeetingTime(true);
-                                      }}
-                                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors shadow-2xs flex items-center gap-1.5"
-                                    >
-                                      <Clock className="w-3.5 h-3.5" />
-                                      <span>Change Meeting Time / Check Availability</span>
-                                    </button>
-                                  </div>
-
-                                  {/* Inline Reschedule / Provider Availability Timing Editor */}
-                                  {isEditingMeetingTime && (
-                                    <motion.form
-                                      initial={{ opacity: 0, height: 0 }}
-                                      animate={{ opacity: 1, height: 'auto' }}
-                                      exit={{ opacity: 0, height: 0 }}
-                                      onSubmit={handleRescheduleMeeting}
-                                      className="mt-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 space-y-3 shadow-sm"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                          <Clock className="w-3.5 h-3.5 text-purple-600" />
-                                          <span>Select a New Date & Time Slot</span>
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => setIsEditingMeetingTime(false)}
-                                          className="text-xs text-slate-400 hover:text-slate-600"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-
-                                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        Choose a time that works best for provider <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedReq.targetProviderId.name}</span>.
-                                      </p>
-
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                        <div>
-                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                            Meeting Date
-                                          </label>
-                                          <input
-                                            type="date"
-                                            value={editMeetingDate}
-                                            onChange={(e) => setEditMeetingDate(e.target.value)}
-                                            required
-                                            className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                            Meeting Time
-                                          </label>
-                                          <input
-                                            type="time"
-                                            value={editMeetingTime}
-                                            onChange={(e) => setEditMeetingTime(e.target.value)}
-                                            required
-                                            className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                            Call Duration
-                                          </label>
-                                          <select
-                                            value={editMeetingDuration}
-                                            onChange={(e) => setEditMeetingDuration(e.target.value)}
-                                            className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                          >
-                                            <option value="30">30 minutes</option>
-                                            <option value="45">45 minutes</option>
-                                            <option value="60">60 minutes</option>
-                                          </select>
-                                        </div>
-                                      </div>
-
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        <div>
-                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                            Requested By
-                                          </label>
-                                          <select
-                                            value={editTimingRole}
-                                            onChange={(e: any) => setEditTimingRole(e.target.value)}
-                                            className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                          >
-                                            <option value="PROVIDER">Provider Availability ({selectedReq.targetProviderId.name})</option>
-                                            <option value="ADMIN">FIC Desk Admin</option>
-                                          </select>
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                            Optional Note
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={editTimingNote}
-                                            onChange={(e) => setEditTimingNote(e.target.value)}
-                                            placeholder="e.g., Provider is available after 2 PM..."
-                                            className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      <div className="flex justify-end space-x-2 pt-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => setIsEditingMeetingTime(false)}
-                                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-800"
-                                        >
-                                          Cancel
-                                        </button>
-                                        <button
-                                          type="submit"
-                                          disabled={isUpdating}
-                                          className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition-all shadow-xs"
-                                        >
-                                          Save New Time
-                                        </button>
-                                      </div>
-                                    </motion.form>
-                                  )}
-                                </div>
-                              ) : (
-                                <form onSubmit={handleScheduleMeeting} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 space-y-3">
-                                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                                    Both <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedReq.requesterName}</span> and provider <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedReq.targetProviderId.name}</span> will receive automatic calendar invites and the Google Meet video link.
-                                  </p>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                        Select Date
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={meetingDate}
-                                        onChange={(e) => setMeetingDate(e.target.value)}
-                                        required
-                                        className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                        Select Time
-                                      </label>
-                                      <input
-                                        type="time"
-                                        value={meetingTime}
-                                        onChange={(e) => setMeetingTime(e.target.value)}
-                                        required
-                                        className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                        Duration
-                                      </label>
-                                      <select
-                                        value={meetingDuration}
-                                        onChange={(e) => setMeetingDuration(e.target.value)}
-                                        className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                      >
-                                        <option value="30">30 minutes</option>
-                                        <option value="45">45 minutes</option>
-                                        <option value="60">60 minutes</option>
-                                      </select>
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                      Google Meet Link (Optional — auto-generated if left blank)
-                                    </label>
-                                    <input
-                                      type="url"
-                                      value={meetingLink}
-                                      onChange={(e) => setMeetingLink(e.target.value)}
-                                      placeholder="https://meet.google.com/fic-..."
-                                      className="w-full text-xs p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                                    />
-                                  </div>
-
-                                  <button
-                                    type="submit"
-                                    disabled={isUpdating}
-                                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition-all shadow-sm active:scale-95"
-                                  >
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <span>Book & Send Calendar Invites</span>
-                                  </button>
-                                </form>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Admin Response to Service Requestor */}
-                          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
-                                <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                <span>Admin Response to Service Requestor</span>
-                              </span>
-                              {selectedReq.adminRespondedAt && (
-                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                  Responded {new Date(selectedReq.adminRespondedAt).toLocaleDateString('en-GB')} by {selectedReq.adminRespondedByName || 'Admin'}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Provider Outcome Review Summary for Admin */}
-                            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-xs space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider">
-                                  Provider Outcome Status:
-                                </span>
-                                {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED' ? (
-                                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                                    Provider Accepted
-                                  </span>
-                                ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED' ? (
-                                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
-                                    Provider Declined
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                    Awaiting Provider Decision
-                                  </span>
-                                )}
-                              </div>
-                              {(selectedReq.providerDecision === 'ACCEPTED' || selectedReq.providerResponse === 'ACCEPTED') && selectedReq.providerResponseMessage && (
-                                <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
-                                  <strong className="font-semibold">Provider message:</strong> "{selectedReq.providerResponseMessage}"
-                                </p>
-                              )}
-                              {(selectedReq.providerDecision === 'REJECTED' || selectedReq.providerResponse === 'DECLINED') && (
-                                <p className="text-[11px] text-rose-700 dark:text-rose-300">
-                                  <strong className="font-semibold">Provider reason:</strong> "{selectedReq.providerRejectionReason || selectedReq.providerResponseMessage || 'Unavailable for this project scope'}"
-                                </p>
-                              )}
-                            </div>
-
-                            {selectedReq.adminResponse && (
-                              <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 rounded-xl text-xs text-purple-900 dark:text-purple-200 font-medium">
-                                <span className="font-bold block text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">
-                                  Active Response Sent to Requestor:
-                                </span>
-                                {selectedReq.adminResponse}
-                              </div>
-                            )}
-
-                            {/* Quick Template Fill Buttons */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold">Quick Templates:</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMemberResponseInput("Good news! The service provider has accepted your request. FIC will now coordinate the next step and help arrange an introductory discussion.");
-                                  setResponseStatus('ADMIN_RESPONSE_SENT');
-                                }}
-                                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
-                              >
-                                + Provider Accepted
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMemberResponseInput("The selected service provider is currently unable to accept your request. FIC has received the provider's response and updated your request accordingly.");
-                                  setResponseStatus('CANCELLED');
-                                }}
-                                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors"
-                              >
-                                + Provider Unavailable
-                              </button>
-                            </div>
-
-                            <form onSubmit={handleSendAdminResponse} className="space-y-2">
-                              <textarea
-                                value={memberResponseInput}
-                                onChange={(e) => setMemberResponseInput(e.target.value)}
-                                placeholder="Write the official response or next steps to the service requestor (visible in Member Website -> My Requests)..."
-                                rows={3}
-                                className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
-                              />
-                              <div className="flex justify-between items-center gap-2 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                  <label className="text-[10px] font-semibold text-slate-500 uppercase">Set Status:</label>
-                                  <select
-                                    value={responseStatus}
-                                    onChange={(e) => setResponseStatus(e.target.value)}
-                                    className="text-xs px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-medium"
-                                  >
-                                    <option value="ADMIN_RESPONSE_SENT">FIC Response Sent</option>
-                                    <option value="IN_PROGRESS">In Progress / Coordinating</option>
-                                    <option value="MEETING_SCHEDULED">Meeting Scheduled</option>
-                                    <option value="COMPLETED">Completed</option>
-                                    <option value="CANCELLED">Cancelled / Closed</option>
-                                    <option value="UNDER_REVIEW">Under Review</option>
-                                  </select>
-                                </div>
-                                <button
-                                  type="submit"
-                                  disabled={isUpdating || !memberResponseInput.trim()}
-                                  className="px-4 py-2 bg-[var(--accent-primary)] hover:opacity-90 text-white disabled:opacity-50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
-                                >
-                                  <Send className="w-3.5 h-3.5" />
-                                  <span>Send Response & Notify Member</span>
-                                </button>
-                              </div>
-                            </form>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Case Coordinator Timeline & Internal Notes */}
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase block font-mono">
-                          Activity Log & Coordinator Notes
-                        </span>
-
-                        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-3 max-h-44 overflow-y-auto space-y-2 border border-slate-200 dark:border-slate-700/60 text-xs font-mono">
-                          {selectedReq.internalNotes && selectedReq.internalNotes.length > 0 ? (
-                            selectedReq.internalNotes.map((n: string, i: number) => (
-                              <div
-                                key={i}
-                                className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs font-sans text-xs"
-                              >
-                                {n}
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-slate-400 italic font-sans">No notes recorded yet.</p>
-                          )}
-                        </div>
-
-                        <form onSubmit={handleAppendNote} className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.target.value)}
-                            placeholder="Add an internal note or update about this case..."
-                            className="flex-1 text-xs px-3.5 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
-                          />
-                          <button
-                            type="submit"
-                            disabled={isUpdating || !newNote.trim()}
-                            className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white disabled:opacity-50 rounded-xl text-xs font-semibold transition-all shadow-2xs"
-                          >
-                            Add Note
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-
-                    {/* Modal Footer */}
-                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedReq(null)}
-                        className="px-5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-2xs"
-                      >
-                        Close Window
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* CANCEL / CLOSE REQUEST MODAL */}
-      <AnimatePresence>
-        {cancelModalOpen && selectedReq && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center space-x-2 text-rose-600 dark:text-rose-400">
-                  <Ban className="w-5 h-5" />
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Close / Cancel Service Request</h3>
-                </div>
+              <div className="flex items-center gap-2">
+                {renderStatusBadge(selectedReq.status)}
                 <button
                   type="button"
-                  onClick={() => setCancelModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+                  onClick={() => setSelectedReq(null)}
+                  className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Provide a recorded reason for closing or cancelling request <strong className="text-slate-800 dark:text-slate-200">"{selectedReq.title}"</strong>. This will be logged in the audit trail and communicated to the member.
-              </p>
+            {/* Modal Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Feedback messages inside modal */}
+              {actionSuccessMsg && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{actionSuccessMsg}</span>
+                </div>
+              )}
+              {actionErrorMsg && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300 font-medium">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{actionErrorMsg}</span>
+                </div>
+              )}
 
-              <form onSubmit={handleCancelRequest} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Cancellation Reason <span className="text-rose-500">*</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={cancelReasonInput}
-                    onChange={(e) => setCancelReasonInput(e.target.value)}
-                    placeholder="e.g., Assigned service provider is currently at full capacity and unable to take this engagement scope..."
-                    className="w-full text-xs p-3 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  />
+              {/* 3-Part Overview Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 1. Original Service Requestor (Client) */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                    1. Original Requestor (Client)
+                  </span>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>{selectedReq.requesterName}</span>
+                    </p>
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                      {selectedReq.requesterEmail}
+                    </p>
+                    <div className="pt-1 flex items-center gap-1 text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Private Client (Hidden from Provider)</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-1">
+                {/* 2. Selected Marketplace Service */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                    2. Selected Service
+                  </span>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>{(selectedReq.targetServiceId as any)?.title || selectedReq.title}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {(selectedReq.targetServiceId as any)?.categoryName || 'Marketplace Capability'}
+                    </p>
+                    {(selectedReq.targetServiceId as any)?.pricingEstimate && (
+                      <span className="text-[10.5px] text-indigo-600 dark:text-indigo-400 font-mono block">
+                        Estimate: {(selectedReq.targetServiceId as any)?.pricingEstimate}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Automatically Identified Service Provider (Phase 3) */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                    3. Service Provider (Auto-Identified)
+                  </span>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>
+                        {(selectedReq.targetProviderId as any)?.name ||
+                          (selectedReq.targetServiceId as any)?.providerName ||
+                          'Listing Owner'}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {(selectedReq.targetProviderId as any)?.primaryCategoryName ||
+                        (selectedReq.targetServiceId as any)?.categoryName ||
+                        'Verified Provider'}
+                    </p>
+                    <div className="pt-1 flex items-center gap-1 text-[10.5px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Bound to Service Listing Owner</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Requirements & Scope */}
+              <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-indigo-500" />
+                  <span>Project / Requirement Specifications</span>
+                </span>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  {selectedReq.description || selectedReq.projectRequirements || 'No additional requirements provided.'}
+                </p>
+              </div>
+
+              {/* ========================================================
+                  PHASE 3 & 4: PROVIDER RESPONSE & DISPATCH WORKFLOW
+                 ======================================================== */}
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <span>Step 1: Provider Coordination & Decision</span>
+                      {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 font-bold">
+                          Accepted by Provider
+                        </span>
+                      ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.status === 'PROVIDER_REJECTED' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 border border-rose-200 font-bold">
+                          Declined by Provider
+                        </span>
+                      ) : selectedReq.status === 'SENT_TO_PROVIDER' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 font-bold">
+                          Awaiting Provider Response
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 font-bold">
+                          Ready to Send
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      The service listing owner evaluates project requirements from their Member Website.
+                    </p>
+                  </div>
+
+                  {/* Dispatch Action */}
+                  {selectedReq.status === 'SUBMITTED' || selectedReq.status === 'NEW' || selectedReq.status === 'UNDER_ADMIN_REVIEW' ? (
+                    <button
+                      type="button"
+                      disabled={isUpdating}
+                      onClick={handleSendToProvider}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Project Information to Provider</span>
+                    </button>
+                  ) : selectedReq.status === 'SENT_TO_PROVIDER' ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                        Brief Sent &bull; Awaiting Reply
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={handleSendToProvider}
+                        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-300 transition-colors"
+                        title="Re-send project brief notification"
+                      >
+                        Re-send Brief
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Provider Outcome Banner */}
+                {selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        <strong>Provider Accepted Project!</strong> Stage 1 meeting can now be scheduled with the service provider.
+                      </span>
+                    </div>
+                    {selectedReq.providerRespondedAt && (
+                      <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
+                        {new Date(selectedReq.providerRespondedAt).toLocaleDateString('en-GB')}
+                      </span>
+                    )}
+                  </div>
+                ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.status === 'PROVIDER_REJECTED' ? (
+                  <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-1 text-xs text-rose-800 dark:text-rose-200">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <strong>Provider Declined This Project</strong>
+                    </div>
+                    <p className="text-[11.5px] text-rose-700 dark:text-rose-300 pl-6">
+                      Reason: "{selectedReq.providerRejectionReason || 'Provider is currently at capacity or unable to fulfill specifications.'}"
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                    Once project information is sent, the provider will review scope and click Accept or Decline in their Member Dashboard.
+                  </p>
+                )}
+              </div>
+
+              {/* ========================================================
+                  PHASE 5: TWO-STAGE BOOK INTRODUCTION CALL
+                 ======================================================== */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <Video className="w-4 h-4 text-indigo-600" />
+                  <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-mono">
+                    Two-Stage Introductory Consultation Workflow
+                  </h4>
+                </div>
+
+                {/* STAGE 1: ADMIN + SERVICE PROVIDER MEETING */}
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
+                          1
+                        </span>
+                        <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          1. BOOK ADMIN & SERVICE PROVIDER MEETING
+                        </h5>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
+                        <strong>Participants:</strong> FIC Admin + Service Provider only. (Original client is excluded from this stage).
+                      </p>
+                    </div>
+
+                    {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Stage 1 Completed</span>
+                      </span>
+                    ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Call Scheduled</span>
+                      </span>
+                    ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                        Ready to Schedule
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                        <Lock className="w-3 h-3" />
+                        <span>Awaiting Provider Acceptance</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Stage 1 Content */}
+                  {selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                    <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                          Alignment Call Concluded
+                        </span>
+                        <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
+                          {selectedReq.stage1Meeting.completedAt ? new Date(selectedReq.stage1Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
+                        <p>Scheduled: {selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime} ({selectedReq.stage1Meeting.durationMinutes} mins)</p>
+                        <p>Conducted by: {selectedReq.stage1Meeting.completedByAdminName || 'Admin'}</p>
+                        {selectedReq.stage1Meeting.notes && <p className="italic">Notes: "{selectedReq.stage1Meeting.notes}"</p>}
+                      </div>
+                    </div>
+                  ) : selectedReq.stage1Meeting?.status === 'SCHEDULED' ? (
+                    <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{selectedReq.stage1Meeting.scheduledDate} at {selectedReq.stage1Meeting.scheduledTime}</span>
+                            <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage1Meeting.durationMinutes} mins)</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Mode: {selectedReq.stage1Meeting.meetingMode || 'GOOGLE_MEET'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {selectedReq.stage1Meeting.meetingLink && (
+                            <a
+                              href={selectedReq.stage1Meeting.meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                            >
+                              <span>Join Google Meet</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={handleCompleteStage1}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Mark Meeting Completed</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedReq.providerDecision === 'ACCEPTED' || selectedReq.status === 'PROVIDER_ACCEPTED' ? (
+                    /* Stage 1 Schedule Form */
+                    <form onSubmit={handleScheduleStage1} className="space-y-3 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Select Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            min={new Date().toISOString().split('T')[0]}
+                            value={stage1Date}
+                            onChange={(e) => setStage1Date(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Select Time *
+                          </label>
+                          <input
+                            type="time"
+                            required
+                            value={stage1Time}
+                            onChange={(e) => setStage1Time(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Duration
+                          </label>
+                          <select
+                            value={stage1Duration}
+                            onChange={(e) => setStage1Duration(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">60 minutes</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Meeting Mode
+                          </label>
+                          <select
+                            value={stage1Mode}
+                            onChange={(e) => setStage1Mode(e.target.value as any)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
+                            <option value="IN_PERSON">In-Person Meeting</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            {stage1Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
+                          </label>
+                          <input
+                            type="text"
+                            required={stage1Mode === 'IN_PERSON'}
+                            value={stage1LinkOrLocation}
+                            onChange={(e) => setStage1LinkOrLocation(e.target.value)}
+                            placeholder={stage1Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub, Chennai'}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="submit"
+                          disabled={isUpdating}
+                          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Schedule Admin & Provider Meeting</span>
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Stage 1 scheduling is locked until the provider reviews and accepts the project requirements.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* STAGE 2: ADMIN + ORIGINAL SERVICE REQUESTOR MEETING */}
+                <div
+                  className={`p-5 rounded-2xl border transition-all space-y-4 ${
+                    selectedReq.stage1Meeting?.status === 'COMPLETED'
+                      ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
+                      : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60 opacity-80'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center ${
+                            selectedReq.stage1Meeting?.status === 'COMPLETED' ? 'bg-indigo-600' : 'bg-slate-400'
+                          }`}
+                        >
+                          2
+                        </span>
+                        <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          2. BOOK ADMIN & SERVICE REQUESTOR MEETING
+                        </h5>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-8">
+                        <strong>Participants:</strong> FIC Admin + Original Service Requestor (Member A) only. (Provider is excluded from this stage).
+                      </p>
+                    </div>
+
+                    {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Stage 2 Completed & Closed</span>
+                      </span>
+                    ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Client Meeting Scheduled</span>
+                      </span>
+                    ) : selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                        Ready to Schedule Client
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                        <Lock className="w-3 h-3" />
+                        <span>Locked (Complete Stage 1 First)</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Stage 2 Content */}
+                  {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
+                    <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                          Client Consultation Concluded &bull; Request Marked Completed
+                        </span>
+                        <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400">
+                          {selectedReq.stage2Meeting.completedAt ? new Date(selectedReq.stage2Meeting.completedAt).toLocaleString('en-IN') : 'Completed'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5">
+                        <p>Scheduled: {selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime} ({selectedReq.stage2Meeting.durationMinutes} mins)</p>
+                        <p>Conducted by: {selectedReq.stage2Meeting.completedByAdminName || 'Admin'}</p>
+                      </div>
+                    </div>
+                  ) : selectedReq.stage2Meeting?.status === 'SCHEDULED' ? (
+                    <div className="p-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{selectedReq.stage2Meeting.scheduledDate} at {selectedReq.stage2Meeting.scheduledTime}</span>
+                            <span className="text-[10px] font-mono text-slate-500">({selectedReq.stage2Meeting.durationMinutes} mins)</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Client: {selectedReq.requesterName} ({selectedReq.requesterEmail})
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {selectedReq.stage2Meeting.meetingLink && (
+                            <a
+                              href={selectedReq.stage2Meeting.meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                            >
+                              <span>Join Google Meet</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={handleCompleteStage2}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Mark Completed & Close Request</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedReq.stage1Meeting?.status === 'COMPLETED' ? (
+                    /* Stage 2 Schedule Form */
+                    <form onSubmit={handleScheduleStage2} className="space-y-3 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Select Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            min={new Date().toISOString().split('T')[0]}
+                            value={stage2Date}
+                            onChange={(e) => setStage2Date(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Select Time *
+                          </label>
+                          <input
+                            type="time"
+                            required
+                            value={stage2Time}
+                            onChange={(e) => setStage2Time(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Duration
+                          </label>
+                          <select
+                            value={stage2Duration}
+                            onChange={(e) => setStage2Duration(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">60 minutes</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            Meeting Mode
+                          </label>
+                          <select
+                            value={stage2Mode}
+                            onChange={(e) => setStage2Mode(e.target.value as any)}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="GOOGLE_MEET">Google Meet (Virtual)</option>
+                            <option value="IN_PERSON">In-Person Meeting</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                            {stage2Mode === 'GOOGLE_MEET' ? 'Google Meet Link' : 'Meeting Location / Address *'}
+                          </label>
+                          <input
+                            type="text"
+                            required={stage2Mode === 'IN_PERSON'}
+                            value={stage2LinkOrLocation}
+                            onChange={(e) => setStage2LinkOrLocation(e.target.value)}
+                            placeholder={stage2Mode === 'GOOGLE_MEET' ? 'https://meet.google.com/fic-...' : 'FIC Regional Hub'}
+                            className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="submit"
+                          disabled={isUpdating}
+                          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Schedule Admin & Requestor Meeting</span>
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Stage 2 is locked. Please schedule and complete Stage 1 (Admin & Provider Meeting) first.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Internal Admin Note & Audit Log */}
+              <div className="p-4.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Coordinator Audit Trail & Internal Notes
+                </span>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={internalNoteInput}
+                    onChange={(e) => setInternalNoteInput(e.target.value)}
+                    placeholder="Add an internal coordinator note..."
+                    className="flex-1 px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
                   <button
                     type="button"
-                    onClick={() => setCancelModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    onClick={handleAddInternalNote}
+                    disabled={!internalNoteInput.trim() || isUpdating}
+                    className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
                   >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isUpdating || !cancelReasonInput.trim()}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
-                  >
-                    Confirm Cancellation
+                    Add Note
                   </button>
                 </div>
-              </form>
-            </motion.div>
+
+                {selectedReq.internalNotes && selectedReq.internalNotes.length > 0 && (
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pt-2">
+                    {selectedReq.internalNotes.map((note: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700"
+                      >
+                        {note}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedReq(null)}
+                className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Close Window
+              </button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };
+export default RequestsDeskPage;

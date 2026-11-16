@@ -74,17 +74,18 @@ export const AdminLayout: React.FC = () => {
     // 3. Ecosystem Marketplace & Catalog
     { name: 'Categories & Config', path: '/categories', icon: FolderTree, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Service Moderation', path: '/services', icon: Briefcase, show: hasRole('SUPER_ADMIN', 'ADMIN') },
-    { name: 'Business Ideas', path: '/business-ideas', icon: Lightbulb, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Business Idea Requests', path: '/business-ideas', icon: Lightbulb, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Scaling Requests', path: '/scaling', icon: TrendingUp, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 4. Commercials & Capital Desk
     { name: 'Payments & Fees', path: '/payments', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },
-    { name: 'FIC Funding Desk', path: '/funding', icon: Coins, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Funding Requests', path: '/funding-requests', icon: Coins, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Investment Requests', path: '/investment-requests', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Referral Bonus', path: '/referrals', icon: Gift, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 5. Operations & Engagement
     { name: 'Meetings & Calls', path: '/meetings', icon: Video, show: hasRole('SUPER_ADMIN', 'ADMIN') },
-    { name: 'FIC Request Desk', path: '/requests', icon: GitPullRequest, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Service Requests', path: '/requests', icon: GitPullRequest, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Support Helpdesk', path: '/support', icon: LifeBuoy, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 6. Administration & Governance

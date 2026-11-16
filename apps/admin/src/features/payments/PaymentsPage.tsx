@@ -636,13 +636,13 @@ export const PaymentsPage: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-5 sm:p-6 space-y-5">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shadow-2xs">
+            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-2xs">
               <Landmark className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
                 <span>FIC Official Receiving Bank Account</span>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                   Treasury Settlement
                 </span>
                 {receivingBank?.status === 'ACTIVE' ? (
@@ -679,7 +679,7 @@ export const PaymentsPage: React.FC = () => {
                 setBankErrorMsg('');
                 setShowEditBankModal(true);
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Configure Receiving Bank</span>
@@ -706,7 +706,7 @@ export const PaymentsPage: React.FC = () => {
                 Bank & Entity Name
               </span>
               <p className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+                <Building2 className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span>{receivingBank?.bankName || 'Forge India Connect Treasury'}</span>
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
@@ -737,7 +737,7 @@ export const PaymentsPage: React.FC = () => {
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
                 IFSC Code & Branch
               </span>
-              <p className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400">
+              <p className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">
                 {receivingBank?.ifscCode || 'HDFC0001234'}
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-300">
@@ -767,7 +767,7 @@ export const PaymentsPage: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <Landmark className="w-5 h-5 text-blue-600" />
+                <Landmark className="w-5 h-5 text-indigo-600" />
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                   Configure FIC Receiving Bank Account
                 </h3>
@@ -800,7 +800,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.bankName}
                     onChange={(e) => setBankFormData({ ...bankFormData, bankName: e.target.value })}
                     placeholder="e.g. HDFC Bank"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
@@ -810,7 +810,7 @@ export const PaymentsPage: React.FC = () => {
                   <select
                     value={bankFormData.accountType}
                     onChange={(e) => setBankFormData({ ...bankFormData, accountType: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="CURRENT">CURRENT</option>
                     <option value="SAVINGS">SAVINGS</option>
@@ -828,7 +828,7 @@ export const PaymentsPage: React.FC = () => {
                   value={bankFormData.accountHolderName}
                   onChange={(e) => setBankFormData({ ...bankFormData, accountHolderName: e.target.value })}
                   placeholder="e.g. Forge India Connect Private Limited"
-                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -842,7 +842,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.accountNumber}
                     onChange={(e) => setBankFormData({ ...bankFormData, accountNumber: e.target.value })}
                     placeholder="Enter new account number"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
                 <div>
@@ -854,7 +854,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.accountNumberConfirm}
                     onChange={(e) => setBankFormData({ ...bankFormData, accountNumberConfirm: e.target.value })}
                     placeholder="Re-enter to confirm"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
               </div>
@@ -870,7 +870,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.ifscCode}
                     onChange={(e) => setBankFormData({ ...bankFormData, ifscCode: e.target.value.toUpperCase() })}
                     placeholder="e.g. HDFC0001234"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono uppercase"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase"
                   />
                 </div>
                 <div>
@@ -883,7 +883,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.branchName}
                     onChange={(e) => setBankFormData({ ...bankFormData, branchName: e.target.value })}
                     placeholder="e.g. Koramangala Branch, Bangalore"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -898,7 +898,7 @@ export const PaymentsPage: React.FC = () => {
                     value={bankFormData.upiId}
                     onChange={(e) => setBankFormData({ ...bankFormData, upiId: e.target.value })}
                     placeholder="e.g. fic.treasury@hdfcbank"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
                 <div>
@@ -908,7 +908,7 @@ export const PaymentsPage: React.FC = () => {
                   <select
                     value={bankFormData.status}
                     onChange={(e) => setBankFormData({ ...bankFormData, status: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="DISABLED">DISABLED</option>
@@ -925,7 +925,7 @@ export const PaymentsPage: React.FC = () => {
                   value={bankFormData.notes}
                   onChange={(e) => setBankFormData({ ...bankFormData, notes: e.target.value })}
                   placeholder="Add any administrative notes regarding this account..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -940,7 +940,7 @@ export const PaymentsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={bankSaving}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{bankSaving ? 'Saving...' : 'Save Bank Details'}</span>
@@ -957,7 +957,7 @@ export const PaymentsPage: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-blue-500" />
+                <History className="w-5 h-5 text-indigo-500" />
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                   FIC Receiving Bank Audit Trail
                 </h3>
@@ -985,7 +985,7 @@ export const PaymentsPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {log.adminName || 'Admin'} &bull;{' '}
-                        <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px]">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-mono text-[11px]">
                           {log.action}
                         </span>
                       </span>

@@ -60,11 +60,14 @@ export const App: React.FC = () => {
         <Route path="meetings" element={<MeetingsPage />} />
         <Route path="services" element={<ServicesModerationPage />} />
         <Route path="referrals" element={<ReferralBonusPage />} />
-        <Route path="funding" element={<FundingDeskPage />} />
+        <Route path="funding" element={<FundingDeskPage defaultTab="FUNDING_REQUESTS" />} />
+        <Route path="funding-requests" element={<FundingDeskPage defaultTab="FUNDING_REQUESTS" />} />
+        <Route path="investment-requests" element={<FundingDeskPage defaultTab="INVESTMENT_REQUESTS" />} />
         <Route path="business-ideas" element={<BusinessIdeasManagementPage />} />
         <Route path="scaling" element={<BusinessScalingManagementPage />} />
         <Route path="business-scaling" element={<BusinessScalingManagementPage />} />
         <Route path="requests" element={<RequestsDeskPage />} />
+        <Route path="service-requests" element={<RequestsDeskPage />} />
         <Route path="support" element={<SupportTicketsPage />} />
         <Route path="staff" element={<StaffManagementPage />} />
         <Route path="audit-logs" element={<AuditLogsPage />} />

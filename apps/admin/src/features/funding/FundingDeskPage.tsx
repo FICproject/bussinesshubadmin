@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   TrendingUp,
   Search,
@@ -46,11 +47,35 @@ export const formatCurrencyINR = (amount: number): string => {
   return `₹${amount.toLocaleString('en-IN')}`;
 };
 
-export const FundingDeskPage: React.FC = () => {
+export interface FundingDeskPageProps {
+  defaultTab?: FundingDeskTab;
+}
+
+export const FundingDeskPage: React.FC<FundingDeskPageProps> = ({ defaultTab }) => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const getInitialTab = (): FundingDeskTab => {
+    if (defaultTab) return defaultTab;
+    if (location.pathname.includes('investment-requests') || searchParams.get('tab') === 'investment-requests') {
+      return 'INVESTMENT_REQUESTS';
+    }
+    return 'FUNDING_REQUESTS';
+  };
 
   // Active Main Desk Tab
-  const [activeTab, setActiveTab] = useState<FundingDeskTab>('FUNDING_REQUESTS');
+  const [activeTab, setActiveTab] = useState<FundingDeskTab>(getInitialTab);
+
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    } else if (location.pathname.includes('investment-requests') || searchParams.get('tab') === 'investment-requests') {
+      setActiveTab('INVESTMENT_REQUESTS');
+    } else if (location.pathname.includes('funding-requests') || searchParams.get('tab') === 'funding-requests') {
+      setActiveTab('FUNDING_REQUESTS');
+    }
+  }, [defaultTab, location.pathname, searchParams]);
   const [loading, setLoading] = useState<boolean>(true);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -391,7 +416,7 @@ export const FundingDeskPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shadow-2xs">
+            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-2xs">
               <Building className="w-5 h-5" />
             </span>
             <span>FIC Funding & Investment Management Desk</span>
@@ -430,7 +455,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('FUNDING_REQUESTS')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'FUNDING_REQUESTS'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -446,7 +471,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('INVESTMENT_REQUESTS')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'INVESTMENT_REQUESTS'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -462,7 +487,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('FUND_RELEASE')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'FUND_RELEASE'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -478,7 +503,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('RETURNS_MATURITY')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'RETURNS_MATURITY'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -494,7 +519,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('MATURITY_RELEASE')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'MATURITY_RELEASE'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -510,7 +535,7 @@ export const FundingDeskPage: React.FC = () => {
           onClick={() => setActiveTab('POOLS')}
           className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'POOLS'
-              ? 'bg-purple-600 text-white shadow-xs'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
           }`}
         >
@@ -535,7 +560,7 @@ export const FundingDeskPage: React.FC = () => {
                     onClick={() => setFundingStatusFilter(st)}
                     className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
                       fundingStatusFilter === st
-                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300'
+                        ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-purple-300'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                     }`}
                   >
@@ -676,7 +701,7 @@ export const FundingDeskPage: React.FC = () => {
                   onClick={() => setInvestmentStatusFilter(st)}
                   className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
                     investmentStatusFilter === st
-                      ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300'
+                      ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-purple-300'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                   }`}
                 >
@@ -757,7 +782,7 @@ export const FundingDeskPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleOpenReviewInvestment(inv)}
-                          className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] shadow-2xs"
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-2xs"
                         >
                           Review & Decide
                         </button>
@@ -819,7 +844,7 @@ export const FundingDeskPage: React.FC = () => {
                       <td className="p-4 font-bold text-emerald-600 dark:text-emerald-400">
                         {formatCurrencyINR(fr.paidAmount)}
                       </td>
-                      <td className="p-4 font-bold text-purple-600 dark:text-purple-400">
+                      <td className="p-4 font-bold text-indigo-600 dark:text-indigo-400">
                         {formatCurrencyINR(eligible)}
                       </td>
                       <td className="p-4 text-slate-500">
@@ -893,7 +918,7 @@ export const FundingDeskPage: React.FC = () => {
                     <td className="p-4 font-mono text-slate-600 dark:text-slate-300">
                       {rm.maturityDate ? new Date(rm.maturityDate).toLocaleDateString() : 'Pending Deployment'}
                     </td>
-                    <td className="p-4 font-bold text-purple-600 dark:text-purple-400">
+                    <td className="p-4 font-bold text-indigo-600 dark:text-indigo-400">
                       {formatCurrencyINR(rm.maturityAmountDue || Math.round(rm.paidAmount * 1.15))}
                     </td>
                     <td className="p-4">
@@ -947,7 +972,7 @@ export const FundingDeskPage: React.FC = () => {
                       {formatCurrencyINR(mr.maturityAmountReceived || mr.maturityAmountDue)}
                     </td>
                     <td className="p-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
                         {mr.status}
                       </span>
                     </td>
@@ -1054,7 +1079,7 @@ export const FundingDeskPage: React.FC = () => {
                     className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-purple-600" />
+                      <FileText className="w-4 h-4 text-indigo-600" />
                       <span className="font-bold text-slate-800 dark:text-slate-200">{doc.name}</span>
                     </div>
                     {doc.fileUrl && (
@@ -1062,7 +1087,7 @@ export const FundingDeskPage: React.FC = () => {
                         href={doc.fileUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-3 py-1 rounded-lg bg-purple-100 text-purple-700 font-semibold text-[11px] hover:bg-purple-200 flex items-center gap-1"
+                        className="px-3 py-1 rounded-lg bg-indigo-100 text-indigo-700 font-semibold text-[11px] hover:bg-purple-200 flex items-center gap-1"
                       >
                         <span>Preview / Download</span>
                         <ExternalLink className="w-3 h-3" />
@@ -1169,7 +1194,7 @@ export const FundingDeskPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddRequestedDoc}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Document Requirement</span>
@@ -1179,11 +1204,11 @@ export const FundingDeskPage: React.FC = () => {
               {requestedDocsList.map((doc, idx) => (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-xl bg-purple-50 text-purple-900 border border-purple-200 text-xs flex items-center justify-between"
+                  className="p-2.5 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs flex items-center justify-between"
                 >
                   <div>
                     <p className="font-bold">{doc.name}</p>
-                    <p className="text-[11px] text-purple-700">{doc.instructions}</p>
+                    <p className="text-[11px] text-indigo-700">{doc.instructions}</p>
                   </div>
                   <button
                     type="button"
@@ -1426,7 +1451,7 @@ export const FundingDeskPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Eligible Balance:</span>
-                <span className="font-bold text-purple-600 dark:text-purple-400">
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
                   {formatCurrencyINR(disburseTarget.pendingReleaseAmount || disburseTarget.eligibleReleaseAmount || disburseTarget.paidAmount)}
                 </span>
               </div>
@@ -1485,7 +1510,7 @@ export const FundingDeskPage: React.FC = () => {
           <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <span className="text-[10px] font-mono font-bold text-purple-600">
+                <span className="text-[10px] font-mono font-bold text-indigo-600">
                   {maturityReleaseTarget.investmentId}
                 </span>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
