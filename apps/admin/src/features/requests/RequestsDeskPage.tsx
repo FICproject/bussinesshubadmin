@@ -33,12 +33,42 @@ import {
   MapPin,
   FileText,
   RefreshCw,
+  Lightbulb,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { SkeletonCards } from '../../components/Skeleton';
 import { containerVariants, itemVariants, pageVariants } from '../../utils/animations';
 import { ScalingConsultationModalContent } from './ScalingConsultationModalContent';
+
+export const isScalingRequest = (r: any): boolean => {
+  if (!r) return false;
+  if (r.type === 'SCALING_SUPPORT' || r.sourceModule === 'SCALING_SUPPORT') return true;
+  if (r.scalingDetails != null) return true;
+  if (typeof r.requestId === 'string' && r.requestId.startsWith('SCALE-')) return true;
+  if (typeof r.title === 'string') {
+    const t = r.title.toLowerCase();
+    if (
+      t.includes('business growth & expansion support') ||
+      t.includes('marketing & customer acquisition support') ||
+      t.includes('funding support') ||
+      t.includes('mentorship & expert guidance support') ||
+      t.includes('scaling')
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export const isIdeaRequest = (r: any): boolean => {
+  if (!r) return false;
+  if (r.type === 'BUSINESS_IDEAS' || r.sourceModule === 'BUSINESS_IDEAS') return true;
+  if (r.ideaDetails != null) return true;
+  if (typeof r.requestId === 'string' && (r.requestId.startsWith('IDEA-') || r.requestId.startsWith('BI-'))) return true;
+  if (typeof r.title === 'string' && r.title.toLowerCase().includes('idea')) return true;
+  return false;
+};
 
 export const RequestsDeskPage: React.FC = () => {
   const navigate = useNavigate();
@@ -67,7 +97,7 @@ export const RequestsDeskPage: React.FC = () => {
 
   // Fetch Scaling Details automatically when a SCALING_SUPPORT request is opened
   useEffect(() => {
-    if (selectedReq && (selectedReq.type === 'SCALING_SUPPORT' || selectedReq.sourceModule === 'SCALING_SUPPORT')) {
+    if (selectedReq && isScalingRequest(selectedReq)) {
       const targetId = selectedReq.sourceRefId || selectedReq._id;
       apiFetch(`/api/admin/scaling/${targetId}`)
         .then((res: any) => {
@@ -701,14 +731,19 @@ export const RequestsDeskPage: React.FC = () => {
 
                 <div className="space-y-0.5 min-w-0">
                   <p className="text-[11px] text-slate-400">
-                    {r.type === 'SCALING_SUPPORT' ? 'Scaling Advisory' : 'Matched Provider'}
+                    {isScalingRequest(r) ? 'Scaling Advisory' : isIdeaRequest(r) ? 'Idea Innovation' : 'Matched Provider'}
                   </p>
-                  <p className={`font-semibold truncate max-w-[150px] ${r.type === 'SCALING_SUPPORT'
-                      ? 'text-purple-600 dark:text-purple-400'
-                      : 'text-emerald-600 dark:text-emerald-400'
+                  <p className={`font-semibold truncate max-w-[150px] ${
+                      isScalingRequest(r)
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : isIdeaRequest(r)
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
                     }`}>
-                    {r.type === 'SCALING_SUPPORT'
+                    {isScalingRequest(r)
                       ? (r.scalingDetails?.scalingSupportType || 'Direct FIC Advisory')
+                      : isIdeaRequest(r)
+                      ? 'Universal Network Hub'
                       : (r.targetProviderId?.name || 'Not yet assigned')}
                   </p>
                 </div>
@@ -792,14 +827,19 @@ export const RequestsDeskPage: React.FC = () => {
 
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">
-                    {r.type === 'SCALING_SUPPORT' ? 'Advisory Mode:' : 'Matched Provider:'}
+                    {isScalingRequest(r) ? 'Advisory Mode:' : isIdeaRequest(r) ? 'Coordination:' : 'Matched Provider:'}
                   </span>
-                  <span className={`font-semibold truncate max-w-[160px] ${r.type === 'SCALING_SUPPORT'
-                      ? 'text-purple-600 dark:text-purple-400'
-                      : 'text-emerald-600 dark:text-emerald-400'
+                  <span className={`font-semibold truncate max-w-[160px] ${
+                      isScalingRequest(r)
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : isIdeaRequest(r)
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
                     }`}>
-                    {r.type === 'SCALING_SUPPORT'
+                    {isScalingRequest(r)
                       ? 'Direct FIC Consultation'
+                      : isIdeaRequest(r)
+                      ? 'Universal Marketplace'
                       : (r.targetProviderId?.name || 'Not yet assigned')}
                   </span>
                 </div>
@@ -807,7 +847,7 @@ export const RequestsDeskPage: React.FC = () => {
                 <div className="pt-1 flex items-center justify-between text-[10px] text-slate-400 font-mono">
                   <span>{new Date(r.createdAt).toLocaleDateString()}</span>
                   <span className="text-[var(--accent-primary)] font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                    {r.type === 'SCALING_SUPPORT' ? 'Review & Meet' : 'Connect & Schedule'} <ArrowRight className="w-3 h-3" />
+                    {isScalingRequest(r) ? 'Review & Meet' : isIdeaRequest(r) ? 'Review & Publish' : 'Connect & Schedule'} <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
               </div>
@@ -838,7 +878,8 @@ export const RequestsDeskPage: React.FC = () => {
               className="relative z-50 w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               {(() => {
-                const isScaling = selectedReq.type === 'SCALING_SUPPORT' || selectedReq.sourceModule === 'SCALING_SUPPORT';
+                const isScaling = isScalingRequest(selectedReq);
+                const isIdea = isIdeaRequest(selectedReq);
                 const scalingDoc = activeScalingDoc || selectedReq.scalingDetails;
                 const currentStatus = isScaling ? (scalingDoc?.status || selectedReq.status) : selectedReq.status;
 
@@ -848,37 +889,51 @@ export const RequestsDeskPage: React.FC = () => {
                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
                       <div className="flex items-center space-x-3.5">
                         <div
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold shadow-2xs border ${isScaling
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold shadow-2xs border ${
+                            isScaling
                               ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800'
+                              : isIdea
+                              ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                               : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20'
-                            }`}
+                          }`}
                         >
-                          {isScaling ? <TrendingUp className="w-5 h-5" /> : <GitPullRequest className="w-5 h-5" />}
+                          {isScaling ? (
+                            <TrendingUp className="w-5 h-5" />
+                          ) : isIdea ? (
+                            <Lightbulb className="w-5 h-5" />
+                          ) : (
+                            <GitPullRequest className="w-5 h-5" />
+                          )}
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wider">
-                              {isScaling ? 'Business Scaling Consultation Desk' : 'Service Request Management'}
+                              {isScaling
+                                ? 'Business Scaling Consultation Desk'
+                                : isIdea
+                                ? 'Business Ideas & Innovation Desk'
+                                : 'Service Request Management'}
                             </span>
                             <span
-                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${currentStatus === 'MEETING_COMPLETED' || currentStatus === 'COMPLETED'
+                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                                currentStatus === 'MEETING_COMPLETED' || currentStatus === 'COMPLETED'
                                   ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                                   : currentStatus === 'MEETING_SCHEDULED'
-                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                                    : currentStatus === 'UNDER_REVIEW'
-                                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                      : currentStatus === 'PROVIDER_CONTACTED'
-                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                                        : 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
-                                }`}
+                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                  : currentStatus === 'UNDER_REVIEW'
+                                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                                  : currentStatus === 'PROVIDER_CONTACTED'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                                  : 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
+                              }`}
                             >
                               {currentStatus === 'PROVIDER_CONTACTED'
                                 ? 'Brief Sent'
                                 : currentStatus === 'MEETING_SCHEDULED'
-                                  ? 'Call Booked'
-                                  : currentStatus === 'SUBMITTED'
-                                    ? 'Submitted'
-                                    : currentStatus?.replace('_', ' ')}
+                                ? 'Call Booked'
+                                : currentStatus === 'SUBMITTED'
+                                ? 'Submitted'
+                                : currentStatus?.replace('_', ' ')}
                             </span>
                           </div>
                           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">
@@ -892,7 +947,7 @@ export const RequestsDeskPage: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {isScaling && (
+                        {isScaling ? (
                           <button
                             type="button"
                             onClick={() => navigate('/scaling')}
@@ -902,7 +957,17 @@ export const RequestsDeskPage: React.FC = () => {
                             <span>Dedicated Desk</span>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                        ) : isIdea ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate('/business-ideas')}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition-colors flex items-center gap-1.5"
+                            title="Open in Dedicated Business Ideas Desk"
+                          >
+                            <span>Ideas Desk</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setSelectedReq(null)}
@@ -943,6 +1008,61 @@ export const RequestsDeskPage: React.FC = () => {
                           adminNotes={scaleAdminNotes}
                           setAdminNotes={setScaleAdminNotes}
                         />
+                      ) : isIdea ? (
+                        <div className="space-y-4">
+                          {/* Requesting Member Card */}
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-bold text-sm flex items-center justify-center">
+                                <User className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                  {selectedReq.requesterName}
+                                </p>
+                                <p className="text-xs text-slate-400 font-mono">
+                                  {selectedReq.requesterEmail} •{' '}
+                                  {selectedReq.requesterPhone || selectedReq.requesterId?.phone || '+91 Verified Member'}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold px-3 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Business Idea Submission ({selectedReq.requesterCategory || 'Enterprise'})</span>
+                            </span>
+                          </div>
+
+                          {/* Idea Concept & Scope */}
+                          <div className="space-y-1.5">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">
+                              Idea Concept & Scope
+                            </span>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                              {selectedReq.description}
+                            </p>
+                          </div>
+
+                          {/* Dedicated Business Ideas Management Banner */}
+                          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-between flex-wrap gap-3">
+                            <div className="space-y-1 text-xs">
+                              <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                                <Lightbulb className="w-4 h-4 text-amber-600" />
+                                <span>Full Idea Management & Network Collaboration Desk</span>
+                              </span>
+                              <p className="text-[11px] text-amber-800/80 dark:text-amber-300">
+                                Review details, approve for Universal Marketplace publishing, evaluate interested member collaboration offers, and send official coordination updates.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/business-ideas')}
+                              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+                            >
+                              <span>Open Ideas Desk</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <>
                           {/* Requesting Member Card (Private/Confidential) */}

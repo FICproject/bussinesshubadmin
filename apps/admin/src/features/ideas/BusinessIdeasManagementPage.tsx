@@ -284,6 +284,7 @@ export const BusinessIdeasManagementPage: React.FC = () => {
         {
           method: 'PUT',
           body: JSON.stringify({
+            reviewStatus: targetStatus,
             status: targetStatus
           })
         }
@@ -306,8 +307,10 @@ export const BusinessIdeasManagementPage: React.FC = () => {
         {
           method: 'PUT',
           body: JSON.stringify({
+            reviewStatus: 'SELECTED',
             status: 'SELECTED',
             selectionReason: selectionReason.trim(),
+            adminNotes: selectionPrivateNotes.trim(),
             privateNotes: selectionPrivateNotes.trim()
           })
         }
