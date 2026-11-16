@@ -3,6 +3,7 @@ import { Bell, LifeBuoy, UserPlus, Video, Clock, Check, ExternalLink, X, ShieldC
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
+import { AdminNotificationCenterModal, resolveAdminNotificationDestination } from './AdminNotificationCenterModal';
 
 export interface NotificationItem {
   id: string;
@@ -19,6 +20,7 @@ export const NotificationBell: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [showCenterModal, setShowCenterModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -63,7 +65,8 @@ export const NotificationBell: React.FC = () => {
       }
     }
     setIsOpen(false);
-    navigate(item.link);
+    const dest = resolveAdminNotificationDestination(item);
+    navigate(dest);
   };
 
   const markAllRead = async () => {
@@ -203,14 +206,40 @@ export const NotificationBell: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-850 text-center">
+            <div className="p-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 flex items-center justify-between">
               <span className="text-[10px] text-slate-400">
-                Auto-syncs support queries, member signups, and meeting reminders
+                Auto-syncs operational alerts
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setShowCenterModal(true);
+                }}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <span>View All</span>
+                <span>&rarr;</span>
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Phase 1: Comprehensive Admin Notification Center Modal */}
+      <AdminNotificationCenterModal
+        isOpen={showCenterModal}
+        onClose={() => setShowCenterModal(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkRead={async (item) => {
+          setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
+          setUnreadCount((c) => Math.max(0, c - 1));
+          try {
+            await apiFetch(`/api/admin/notifications/${item.id}/read`, { method: 'PATCH' });
+          } catch {}
+        }}
+        onMarkAllRead={markAllRead}
+      />
     </div>
   );
 };

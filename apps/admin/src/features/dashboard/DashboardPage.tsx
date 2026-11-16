@@ -15,7 +15,22 @@ export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [financials, setFinancials] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [isMonthLoading, setIsMonthLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  const handleMonthSelect = async (monthKey: string) => {
+    setSelectedMonth(monthKey);
+    setIsMonthLoading(true);
+    try {
+      const finData = await apiFetch(`/api/admin/dashboard/financial-stats?month=${monthKey}`);
+      setFinancials(finData);
+    } catch (err) {
+      console.error('Failed to load month revenue:', err);
+    } finally {
+      setIsMonthLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadAllDashboardData();
@@ -119,7 +134,12 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* 1. Revenue & Financial Snapshot Card */}
-      <FinancialSnapshotCard data={financials} />
+      <FinancialSnapshotCard
+        data={financials}
+        onMonthSelect={handleMonthSelect}
+        selectedMonth={selectedMonth}
+        isMonthLoading={isMonthLoading}
+      />
 
       {/* 2. Quick Action Toolbar */}
       <QuickActionToolbar

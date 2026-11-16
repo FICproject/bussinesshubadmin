@@ -907,62 +907,110 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                      onClick={() => handleReviewAction('UNDER_REVIEW')}
-                      disabled={isSubmittingReview}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] border border-[var(--border-color)] text-[var(--text-primary)] transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
-                      Mark Under Review
-                    </button>
+                  {/* Phase 7: State-Aware Action Buttons - Strict Status Validation */}
+                  {(() => {
+                    const st = (selectedIdea.status || selectedIdea.adminReviewStatus || '').toUpperCase();
+                    const isApproved = st === 'APPROVED' || st === 'SHARED_ON_MARKETPLACE' || st === 'ON_MARKETPLACE';
+                    const isRejected = st === 'REJECTED';
+                    const isUnderReview = st === 'UNDER_REVIEW';
+                    const isInfoRequested = st === 'INFORMATION_REQUESTED' || st === 'INFO_REQUESTED';
+                    const isSubmitted = st === 'SUBMITTED' || st === 'PENDING' || !st;
 
-                    <button
-                      onClick={() => handleReviewAction('REQUEST_INFO')}
-                      disabled={isSubmittingReview}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Request Clarification
-                    </button>
+                    if (isApproved) {
+                      return (
+                        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-400">
+                          <div className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>
+                              <strong>Idea Approved</strong> &bull; Validated and ready for Universal Marketplace collaboration.
+                            </span>
+                          </div>
+                          {!selectedIdea.marketplacePublished ? (
+                            <button
+                              onClick={handlePublishToMarketplace}
+                              className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                              Publish to Marketplace
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 ml-auto">
+                              <Check className="w-3.5 h-3.5" />
+                              Live on Marketplace
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
 
-                    <button
-                      onClick={() => handleReviewAction('APPROVE')}
-                      disabled={isSubmittingReview}
-                      className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Approve Idea
-                    </button>
+                    if (isRejected) {
+                      return (
+                        <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-1 text-xs text-rose-400">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                            <strong>Business Idea Rejected</strong>
+                          </div>
+                          {selectedIdea.rejectionReason && (
+                            <p className="text-[11.5px] text-rose-300 pl-6 leading-relaxed">
+                              Feedback: "{selectedIdea.rejectionReason}"
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
 
-                    <button
-                      onClick={() => handleReviewAction('REJECT')}
-                      disabled={isSubmittingReview}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Reject Idea
-                    </button>
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {/* 7.1 Only show Mark Under Review if currently SUBMITTED */}
+                        {isSubmitted && (
+                          <button
+                            onClick={() => handleReviewAction('UNDER_REVIEW')}
+                            disabled={isSubmittingReview}
+                            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-secondary)] hover:bg-[var(--card-hover)] border border-[var(--border-color)] text-[var(--text-primary)] transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                            Mark Under Review
+                          </button>
+                        )}
 
-                    {/* Publish to Marketplace Button (Available if Approved) */}
-                    {(selectedIdea.status === 'APPROVED' || selectedIdea.adminReviewStatus === 'APPROVED') &&
-                      !selectedIdea.marketplacePublished && (
+                        {/* Request Clarification (allowed in SUBMITTED or UNDER_REVIEW) */}
                         <button
-                          onClick={handlePublishToMarketplace}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                          onClick={() => handleReviewAction('REQUEST_INFO')}
+                          disabled={isSubmittingReview}
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
-                          Publish to Marketplace
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Request Clarification
                         </button>
-                      )}
 
-                    {selectedIdea.marketplacePublished && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 ml-auto">
-                        <Check className="w-3.5 h-3.5" />
-                        Live on Marketplace
-                      </span>
-                    )}
-                  </div>
+                        {/* Approve Idea */}
+                        <button
+                          onClick={() => handleReviewAction('APPROVE')}
+                          disabled={isSubmittingReview}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Approve Idea
+                        </button>
+
+                        {/* Reject Idea */}
+                        <button
+                          onClick={() => handleReviewAction('REJECT')}
+                          disabled={isSubmittingReview}
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          Reject Idea
+                        </button>
+
+                        {isInfoRequested && (
+                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 ml-auto">
+                            Awaiting member clarification
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Section E: Interested Members & Collaboration Responses */}
@@ -1210,7 +1258,7 @@ export const BusinessIdeasManagementPage: React.FC = () => {
       {/* 6. Select Contributor Modal */}
       <AnimatePresence>
         {selectingInterest && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
