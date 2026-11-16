@@ -15,7 +15,10 @@ import {
   Lock,
   History,
   Sparkles,
-  Check
+  Check,
+  Landmark,
+  Building2,
+  Edit3
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../services/api';
@@ -72,8 +75,30 @@ export const PaymentsPage: React.FC = () => {
   const [pricingAuditLogs, setPricingAuditLogs] = useState<any[]>([]);
   const [showPricingLogsModal, setShowPricingLogsModal] = useState(false);
 
+  // FIC Receiving Bank Account configuration state
+  const [receivingBank, setReceivingBank] = useState<any | null>(null);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [showEditBankModal, setShowEditBankModal] = useState(false);
+  const [showBankLogsModal, setShowBankLogsModal] = useState(false);
+  const [bankFormData, setBankFormData] = useState({
+    accountHolderName: '',
+    bankName: '',
+    accountNumber: '',
+    accountNumberConfirm: '',
+    ifscCode: '',
+    branchName: '',
+    accountType: 'CURRENT',
+    upiId: '',
+    status: 'ACTIVE',
+    notes: ''
+  });
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankErrorMsg, setBankErrorMsg] = useState('');
+  const [bankSuccessMsg, setBankSuccessMsg] = useState('');
+
   useEffect(() => {
     loadPricing();
+    loadReceivingBank();
   }, []);
 
   const loadPricing = async () => {
@@ -144,6 +169,91 @@ export const PaymentsPage: React.FC = () => {
       setPricingErrorMsg(err.message || 'Failed to update pricing configuration');
     } finally {
       setPricingSaving(false);
+    }
+  };
+
+  const loadReceivingBank = async () => {
+    setBankLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/funding/receiving-bank');
+      const data = res?.data || res;
+      if (data && (data.bankName || data.accountNumberMasked)) {
+        setReceivingBank(data);
+        setBankFormData({
+          accountHolderName: data.accountHolderName || '',
+          bankName: data.bankName || '',
+          accountNumber: '',
+          accountNumberConfirm: '',
+          ifscCode: data.ifscCode || '',
+          branchName: data.branchName || '',
+          accountType: data.accountType || 'CURRENT',
+          upiId: data.upiId || '',
+          status: data.status || 'ACTIVE',
+          notes: data.notes || ''
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to load receiving bank', err);
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
+  const handleSaveBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBankErrorMsg('');
+    setBankSuccessMsg('');
+
+    if (!bankFormData.bankName.trim() || !bankFormData.accountHolderName.trim() || !bankFormData.ifscCode.trim()) {
+      setBankErrorMsg('Please fill in Bank Name, Account Holder Name, and IFSC Code.');
+      return;
+    }
+
+    if (bankFormData.accountNumber) {
+      if (bankFormData.accountNumber !== bankFormData.accountNumberConfirm) {
+        setBankErrorMsg('Account numbers do not match.');
+        return;
+      }
+      if (bankFormData.accountNumber.length < 8) {
+        setBankErrorMsg('Account number must be at least 8 digits.');
+        return;
+      }
+    }
+
+    setBankSaving(true);
+    try {
+      const payload: any = {
+        bankName: bankFormData.bankName.trim(),
+        accountHolderName: bankFormData.accountHolderName.trim(),
+        ifscCode: bankFormData.ifscCode.trim().toUpperCase(),
+        branchName: bankFormData.branchName.trim(),
+        accountType: bankFormData.accountType,
+        upiId: bankFormData.upiId.trim(),
+        status: bankFormData.status,
+        notes: bankFormData.notes.trim()
+      };
+      if (bankFormData.accountNumber) {
+        payload.accountNumber = bankFormData.accountNumber.trim();
+        payload.accountNumberConfirm = bankFormData.accountNumberConfirm.trim();
+      }
+
+      const res = await apiFetch('/api/admin/funding/receiving-bank', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      if (res?.success || res?.data) {
+        setBankSuccessMsg('FIC Receiving Bank Account updated successfully.');
+        setShowEditBankModal(false);
+        await loadReceivingBank();
+        setTimeout(() => setBankSuccessMsg(''), 5000);
+      } else {
+        setBankErrorMsg(res?.message || 'Failed to update receiving bank account.');
+      }
+    } catch (err: any) {
+      setBankErrorMsg(err.message || 'Failed to update receiving bank account.');
+    } finally {
+      setBankSaving(false);
     }
   };
 
@@ -522,7 +632,391 @@ export const PaymentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Filter and Search Bar */}
+      {/* FIC Official Receiving Bank Account Configuration Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shadow-2xs">
+              <Landmark className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                <span>FIC Official Receiving Bank Account</span>
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  Treasury Settlement
+                </span>
+                {receivingBank?.status === 'ACTIVE' ? (
+                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Active & Receiving
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    Inactive
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Official centralized banking destination for member investment collections, funding disbursements, and return settlements.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {receivingBank?.auditLogs && receivingBank.auditLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowBankLogsModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <History className="w-3.5 h-3.5 text-blue-500" />
+                <span>Audit Logs ({receivingBank.auditLogs.length})</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setBankErrorMsg('');
+                setShowEditBankModal(true);
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Configure Receiving Bank</span>
+            </button>
+          </div>
+        </div>
+
+        {bankSuccessMsg && (
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{bankSuccessMsg}</span>
+          </div>
+        )}
+
+        {bankLoading ? (
+          <div className="p-8 text-center text-xs text-slate-400 font-mono">
+            Loading receiving bank specifications...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Bank Card 1: Account Holder & Bank */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                Bank & Entity Name
+              </span>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+                <span>{receivingBank?.bankName || 'Forge India Connect Treasury'}</span>
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                {receivingBank?.accountHolderName || 'Forge India Connect Pvt. Ltd.'}
+              </p>
+              <span className="text-[10px] text-slate-400 block pt-1 font-mono">
+                Type: {receivingBank?.accountType || 'CURRENT'} ACCOUNT
+              </span>
+            </div>
+
+            {/* Bank Card 2: Masked Account Number */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                Settlement Account Number
+              </span>
+              <p className="text-sm font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{receivingBank?.accountNumberMasked || '•••• •••• •••• 5678'}</span>
+              </p>
+              <div className="pt-1 flex items-center gap-1 text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Masked & Audit Safe</span>
+              </div>
+            </div>
+
+            {/* Bank Card 3: IFSC & Branch */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                IFSC Code & Branch
+              </span>
+              <p className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400">
+                {receivingBank?.ifscCode || 'HDFC0001234'}
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {receivingBank?.branchName || 'Central Treasury, Bangalore'}
+              </p>
+            </div>
+
+            {/* Bank Card 4: UPI ID & Notes */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-mono">
+                Treasury UPI ID
+              </span>
+              <p className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
+                {receivingBank?.upiId || 'fic.treasury@hdfcbank'}
+              </p>
+              <p className="text-[10.5px] text-slate-400 leading-snug pt-1 truncate">
+                {receivingBank?.notes || 'Default centralized payout & collection ledger'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Edit Receiving Bank Account Modal */}
+      {showEditBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                  Configure FIC Receiving Bank Account
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditBankModal(false)}
+                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {bankErrorMsg && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300 font-medium">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{bankErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveBank} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={bankFormData.bankName}
+                    onChange={(e) => setBankFormData({ ...bankFormData, bankName: e.target.value })}
+                    placeholder="e.g. HDFC Bank"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Account Type *
+                  </label>
+                  <select
+                    value={bankFormData.accountType}
+                    onChange={(e) => setBankFormData({ ...bankFormData, accountType: e.target.value })}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="CURRENT">CURRENT</option>
+                    <option value="SAVINGS">SAVINGS</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Account Holder Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={bankFormData.accountHolderName}
+                  onChange={(e) => setBankFormData({ ...bankFormData, accountHolderName: e.target.value })}
+                  placeholder="e.g. Forge India Connect Private Limited"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    New Account Number (leave blank to keep {receivingBank?.accountNumberMasked || 'current'})
+                  </label>
+                  <input
+                    type="password"
+                    value={bankFormData.accountNumber}
+                    onChange={(e) => setBankFormData({ ...bankFormData, accountNumber: e.target.value })}
+                    placeholder="Enter new account number"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Confirm Account Number
+                  </label>
+                  <input
+                    type="text"
+                    value={bankFormData.accountNumberConfirm}
+                    onChange={(e) => setBankFormData({ ...bankFormData, accountNumberConfirm: e.target.value })}
+                    placeholder="Re-enter to confirm"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    IFSC Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={bankFormData.ifscCode}
+                    onChange={(e) => setBankFormData({ ...bankFormData, ifscCode: e.target.value.toUpperCase() })}
+                    placeholder="e.g. HDFC0001234"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Branch Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={bankFormData.branchName}
+                    onChange={(e) => setBankFormData({ ...bankFormData, branchName: e.target.value })}
+                    placeholder="e.g. Koramangala Branch, Bangalore"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Treasury UPI ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={bankFormData.upiId}
+                    onChange={(e) => setBankFormData({ ...bankFormData, upiId: e.target.value })}
+                    placeholder="e.g. fic.treasury@hdfcbank"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={bankFormData.status}
+                    onChange={(e) => setBankFormData({ ...bankFormData, status: e.target.value })}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="DISABLED">DISABLED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Internal Treasury Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={bankFormData.notes}
+                  onChange={(e) => setBankFormData({ ...bankFormData, notes: e.target.value })}
+                  placeholder="Add any administrative notes regarding this account..."
+                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditBankModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bankSaving}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{bankSaving ? 'Saving...' : 'Save Bank Details'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Audit Logs Modal */}
+      {showBankLogsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-blue-500" />
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                  FIC Receiving Bank Audit Trail
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBankLogsModal(false)}
+                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {(!receivingBank?.auditLogs || receivingBank.auditLogs.length === 0) ? (
+                <p className="text-xs text-slate-400 text-center py-6 font-mono">
+                  No bank changes recorded yet. Initial configuration active.
+                </p>
+              ) : (
+                receivingBank.auditLogs.map((log: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {log.adminName || 'Admin'} &bull;{' '}
+                        <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px]">
+                          {log.action}
+                        </span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString('en-IN') : 'Recently'}
+                      </span>
+                    </div>
+                    {log.changes && (
+                      <div className="text-[11px] font-mono text-slate-600 dark:text-slate-300 pt-1">
+                        <pre className="text-[10px] bg-slate-100 dark:bg-slate-900 p-2 rounded-lg overflow-x-auto">
+                          {JSON.stringify(log.changes, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setShowBankLogsModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
