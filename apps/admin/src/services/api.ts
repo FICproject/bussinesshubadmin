@@ -73,7 +73,19 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     throw new Error(data.details || data.error || data.message || 'Request failed');
   }
 
-  return data.data;
+  // If data has an inner data object, preserve success & message properties while returning the payload
+  if (data.data !== undefined && data.data !== null) {
+    if (typeof data.data === 'object' && !Array.isArray(data.data)) {
+      return {
+        success: true,
+        message: data.message,
+        ...data.data,
+      };
+    }
+    return data.data;
+  }
+
+  return data;
 }
 
 

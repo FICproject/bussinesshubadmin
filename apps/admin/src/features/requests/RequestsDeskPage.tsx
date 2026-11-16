@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitPullRequest,
+  Info,
   Search,
   CheckCircle2,
   Clock,
@@ -66,41 +67,51 @@ export const RequestsDeskPage: React.FC = () => {
 
   // Internal admin note input
   const [internalNoteInput, setInternalNoteInput] = useState('');
+  const [officialResponseText, setOfficialResponseText] = useState('');
+  const [isSendingResponse, setIsSendingResponse] = useState(false);
 
-  useEffect(() => {
-    const s = searchParams.get('status');
-    if (s && s.toUpperCase() !== statusFilter) {
-      setStatusFilter(s.toUpperCase());
-    } else if (!s && statusFilter !== 'ALL') {
-      setStatusFilter('ALL');
-    }
-  }, [searchParams]);
+  const isProviderDeclined = Boolean(
+    selectedReq?.providerDecision === 'REJECTED' ||
+    selectedReq?.status === 'PROVIDER_REJECTED' ||
+    selectedReq?.providerResponse === 'DECLINED'
+  );
 
-  useEffect(() => {
-    loadRequests();
-  }, [statusFilter]);
-
-  const loadRequests = async (keepSelectedId?: string) => {
-    setLoading(true);
+  const loadRequests = async (keepSelectedId?: string, isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
-      const qs = params.toString() ? `?${params.toString()}` : '';
-      const res = await apiFetch(`/api/admin/requests${qs}`);
+      const qs = params.toString() ? '?' + params.toString() : '';
+      const res = await apiFetch('/api/admin/requests' + qs);
       const data = res?.data || res || [];
       const list = Array.isArray(data) ? data : [];
       setRequests(list);
-      const targetId = keepSelectedId || selectedReq?._id;
+      const targetId = keepSelectedId || selectedReq?._id || selectedReq?.requestId;
       if (targetId) {
         const updated = list.find((r: any) => r._id === targetId || r.requestId === targetId);
-        setSelectedReq(updated || null);
+        if (updated) setSelectedReq(updated);
       }
     } catch (err) {
       console.error('Failed to load service requests', err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadRequests();
+    const handleFocus = () => {
+      loadRequests(undefined, true);
+    };
+    window.addEventListener('focus', handleFocus);
+    const pollTimer = setInterval(() => {
+      loadRequests(undefined, true);
+    }, 15000);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(pollTimer);
+    };
+  }, [statusFilter]);
 
   const showSuccessBanner = (msg: string) => {
     setActionSuccessMsg(msg);
@@ -177,12 +188,8 @@ export const RequestsDeskPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ customMessage: 'Project specifications reviewed and dispatched by FIC Admin.' })
       });
-      if (res?.success) {
-        showSuccessBanner(res.message || 'Project information sent to provider! Status updated to SENT_TO_PROVIDER.');
-        await loadRequests(targetId);
-      } else {
-        throw new Error(res?.error || 'Failed to dispatch project brief to provider');
-      }
+      showSuccessBanner(res?.message || 'Project information sent to provider! Status updated to SENT_TO_PROVIDER.');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
@@ -219,12 +226,8 @@ export const RequestsDeskPage: React.FC = () => {
           notes: stage1Notes.trim()
         })
       });
-      if (res?.success) {
-        showSuccessBanner(res.message || 'Stage 1 Admin & Provider meeting scheduled successfully!');
-        await loadRequests(targetId);
-      } else {
-        throw new Error(res?.error || 'Failed to schedule Stage 1 meeting');
-      }
+      showSuccessBanner(res?.message || 'Stage 1 Admin & Provider meeting scheduled successfully!');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
@@ -247,13 +250,9 @@ export const RequestsDeskPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ completionNotes: 'Stage 1 consultation concluded. Provider aligned with project scope.' })
       });
-      if (res?.success) {
-        showSuccessBanner(res.message || 'Stage 1 meeting marked COMPLETED! Stage 2 is now unlocked.');
-        setSelectedMeetingParticipant('REQUESTER');
-        await loadRequests(targetId);
-      } else {
-        throw new Error(res?.error || 'Failed to complete Stage 1 meeting');
-      }
+      showSuccessBanner(res?.message || 'Stage 1 meeting marked COMPLETED! Stage 2 is now unlocked.');
+      setSelectedMeetingParticipant('REQUESTER');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
@@ -290,12 +289,8 @@ export const RequestsDeskPage: React.FC = () => {
           notes: stage2Notes.trim()
         })
       });
-      if (res?.success) {
-        showSuccessBanner(res.message || 'Stage 2 Admin & Requestor meeting scheduled successfully!');
-        await loadRequests(targetId);
-      } else {
-        throw new Error(res?.error || 'Failed to schedule Stage 2 meeting');
-      }
+      showSuccessBanner(res?.message || 'Stage 2 Admin & Requestor meeting scheduled successfully!');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
@@ -318,12 +313,8 @@ export const RequestsDeskPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ completionNotes: 'Stage 2 debrief completed with client. Service request fulfilled.' })
       });
-      if (res?.success) {
-        showSuccessBanner(res.message || 'Service request workflow concluded and marked COMPLETED!');
-        await loadRequests(targetId);
-      } else {
-        throw new Error(res?.error || 'Failed to complete Stage 2 meeting');
-      }
+      showSuccessBanner(res?.message || 'Service request workflow concluded and marked COMPLETED!');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
@@ -337,19 +328,44 @@ export const RequestsDeskPage: React.FC = () => {
     setIsUpdating(true);
     try {
       const targetId = selectedReq._id || selectedReq.requestId;
-      const res = await apiFetch(`/api/admin/requests/${targetId}`, {
+      await apiFetch(`/api/admin/requests/${targetId}`, {
         method: 'PATCH',
         body: JSON.stringify({ note: internalNoteInput.trim() })
       });
-      if (res?.success) {
-        showSuccessBanner('Note saved to request audit log.');
-        setInternalNoteInput('');
-        await loadRequests(targetId);
-      }
+      showSuccessBanner('Note saved to request audit log.');
+      setInternalNoteInput('');
+      await loadRequests(targetId);
     } catch (err: any) {
       showErrorBanner(err.message);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  // Phase 5 Action: Send Official Response to Requestor
+  const handleSendOfficialResponse = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedReq) return;
+    if (!officialResponseText.trim()) {
+      showErrorBanner('Please enter an official message for the service requestor.');
+      return;
+    }
+
+    setIsSendingResponse(true);
+    setActionErrorMsg('');
+    try {
+      const targetId = selectedReq._id || selectedReq.requestId;
+      const res = await apiFetch(`/api/admin/requests/${targetId}/official-response`, {
+        method: 'POST',
+        body: JSON.stringify({ message: officialResponseText.trim() })
+      });
+      showSuccessBanner(res?.message || 'Official update dispatched to requestor successfully!');
+      setOfficialResponseText('');
+      await loadRequests(targetId);
+    } catch (err: any) {
+      showErrorBanner(err.message);
+    } finally {
+      setIsSendingResponse(false);
     }
   };
 
@@ -382,7 +398,14 @@ export const RequestsDeskPage: React.FC = () => {
   }, [requests]);
 
   // Helper for status badge
-  const renderStatusBadge = (status: string) => {
+  const renderStatusBadge = (status: string, req?: any) => {
+    if (req?.providerDecision === 'REJECTED' || req?.status === 'PROVIDER_REJECTED' || req?.providerResponse === 'DECLINED') {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+          Provider Declined
+        </span>
+      );
+    }
     switch (status) {
       case 'SUBMITTED':
       case 'NEW':
@@ -660,7 +683,7 @@ export const RequestsDeskPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        {renderStatusBadge(req.status)}
+                        {renderStatusBadge(req.status, req)}
                       </td>
                       <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">
                         {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : 'Recently'}
@@ -698,7 +721,7 @@ export const RequestsDeskPage: React.FC = () => {
                     <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
                       {req.requestId || `SR-${req._id.slice(-6).toUpperCase()}`}
                     </span>
-                    {renderStatusBadge(req.status)}
+                    {renderStatusBadge(req.status, req)}
                   </div>
 
                   <div>
@@ -773,7 +796,7 @@ export const RequestsDeskPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {renderStatusBadge(selectedReq.status)}
+                {renderStatusBadge(selectedReq.status, selectedReq)}
                 <button
                   type="button"
                   onClick={() => setSelectedReq(null)}
@@ -980,14 +1003,25 @@ export const RequestsDeskPage: React.FC = () => {
                     )}
                   </div>
                 ) : selectedReq.providerDecision === 'REJECTED' || selectedReq.status === 'PROVIDER_REJECTED' ? (
-                  <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-1 text-xs text-rose-800 dark:text-rose-200">
-                    <div className="flex items-center gap-2">
-                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <strong>Provider Declined This Project</strong>
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-2 text-xs text-rose-800 dark:text-rose-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <strong className="font-bold text-sm">Provider Declined This Project</strong>
+                      </div>
+                      {(selectedReq.providerRespondedAt || selectedReq.providerResponseAt || selectedReq.updatedAt) && (
+                        <span className="text-[11px] font-mono text-rose-600 dark:text-rose-400">
+                          {new Date(selectedReq.providerRespondedAt || selectedReq.providerResponseAt || selectedReq.updatedAt).toLocaleString('en-IN')}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11.5px] text-rose-700 dark:text-rose-300 pl-6">
-                      Reason: "{selectedReq.providerRejectionReason || 'Provider is currently at capacity or unable to fulfill specifications.'}"
+                    <p className="text-[12px] text-rose-700 dark:text-rose-300 pl-6 leading-relaxed">
+                      <strong>Decline Reason:</strong> "{selectedReq.providerRejectionReason || selectedReq.providerResponseMessage || 'The provider is currently unable to undertake these specifications.'}"
                     </p>
+                    <div className="pl-6 pt-1 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 shrink-0" />
+                      <span>Stage 1 provider meeting is bypassed. You can schedule a direct advisory consultation with original requestor below or send an official update.</span>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
@@ -1020,13 +1054,13 @@ export const RequestsDeskPage: React.FC = () => {
                       className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="PROVIDER">
-                        1. Service Provider (Stage 1) - {selectedReq.providerName || 'Provider'}
+                        1. Service Provider (Stage 1) - {selectedReq.providerName || 'Provider'}{isProviderDeclined ? ' (Optional - Provider Declined)' : ''}
                       </option>
                       <option
                         value="REQUESTER"
-                        disabled={selectedReq.stage1Meeting?.status !== 'COMPLETED'}
+                        disabled={!isProviderDeclined && selectedReq.stage1Meeting?.status !== 'COMPLETED'}
                       >
-                        2. Original Service Requestor (Stage 2) - {selectedReq.requesterName || 'Client'}{selectedReq.stage1Meeting?.status !== 'COMPLETED' ? ' (Locked - Complete Stage 1 First)' : ''}
+                        2. Original Service Requestor (Stage 2) - {selectedReq.requesterName || 'Client'}{(!isProviderDeclined && selectedReq.stage1Meeting?.status !== 'COMPLETED') ? ' (Locked - Complete Stage 1 First)' : ''}
                       </option>
                     </select>
                   </div>
@@ -1063,7 +1097,7 @@ export const RequestsDeskPage: React.FC = () => {
                   >
                     <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-mono">2</span>
                     <span>Stage 2: Original Requestor ({selectedReq.requesterName || 'Client'})</span>
-                    {selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
+                    {!isProviderDeclined && selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
                       <Lock className="w-3 h-3 text-slate-400 ml-1" />
                     ) : selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 ml-1" />
@@ -1275,7 +1309,7 @@ export const RequestsDeskPage: React.FC = () => {
                         : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60'
                     }`}
                   >
-                    {selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
+                    {!isProviderDeclined && selectedReq.stage1Meeting?.status !== 'COMPLETED' ? (
                       /* Phase 3.2 Prominent Lock Banner */
                       <div className="p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 space-y-2">
                         <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-xs">
@@ -1320,6 +1354,14 @@ export const RequestsDeskPage: React.FC = () => {
                           )}
                         </div>
 
+                        {isProviderDeclined && (
+                          <div className="p-3.5 bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl flex items-center gap-2 text-xs text-indigo-900 dark:text-indigo-200">
+                            <Info className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span>
+                              <strong>Direct Client Consultation Unlocked:</strong> The assigned provider declined the project brief. You can schedule a direct advisory call with {selectedReq.requesterName || 'Client'} to review alternative providers or project next steps.
+                            </span>
+                          </div>
+                        )}
                         {/* Stage 2 Content */}
                         {selectedReq.stage2Meeting?.status === 'COMPLETED' ? (
                           <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
@@ -1468,6 +1510,88 @@ export const RequestsDeskPage: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* ========================================================
+                  PHASE 5: ADMIN OFFICIAL RESPONSE TO SERVICE REQUESTOR
+                 ======================================================== */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/50 shadow-sm space-y-4">
+                <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Send className="w-4 h-4 text-indigo-600" />
+                      <span>Official Response to Service Requestor</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Dispatches an official visible update and notification to the client's dashboard ({selectedReq.requesterName || 'Client'}). Confidential internal coordinator notes are shielded.
+                    </p>
+                  </div>
+                  {selectedReq.adminResponseSentAt && (
+                    <span className="text-[10.5px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-full border border-indigo-200 shrink-0">
+                      Last sent {new Date(selectedReq.adminResponseSentAt).toLocaleDateString('en-GB')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Previous Official Responses History */}
+                {selectedReq.officialResponses && selectedReq.officialResponses.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+                      Dispatched Updates History:
+                    </span>
+                    {selectedReq.officialResponses.map((resp: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{resp.adminName || 'Admin'}</span>
+                          <span className="font-mono">{new Date(resp.createdAt).toLocaleString('en-IN')}</span>
+                        </div>
+                        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{resp.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedReq.adminResponse ? (
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{selectedReq.adminRespondedByName || 'Admin'}</span>
+                      <span className="font-mono">{selectedReq.adminRespondedAt ? new Date(selectedReq.adminRespondedAt).toLocaleString('en-IN') : 'Previous response'}</span>
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{selectedReq.adminResponse}</p>
+                  </div>
+                ) : null}
+
+                {/* Send New Official Response Form */}
+                <form onSubmit={handleSendOfficialResponse} className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Official Message to Client *
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={officialResponseText}
+                      onChange={(e) => setOfficialResponseText(e.target.value)}
+                      placeholder={
+                        isProviderDeclined
+                          ? `Dear ${selectedReq.requesterName || 'Member'}, the initial service provider is currently at full capacity for this scope. We have assigned our senior advisory team to connect with you regarding alternative verified providers...`
+                          : `Dear ${selectedReq.requesterName || 'Member'}, FIC Administration has reviewed your requirements...`
+                      }
+                      className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-slate-500">
+                      This notification will be delivered directly to the client's notification center.
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={isSendingResponse || !officialResponseText.trim()}
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isSendingResponse ? 'Dispatching...' : 'Send Official Update to Requestor'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
 
               {/* Internal Admin Note & Audit Log */}
