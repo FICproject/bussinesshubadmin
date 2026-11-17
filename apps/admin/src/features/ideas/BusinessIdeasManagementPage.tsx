@@ -26,7 +26,8 @@ import {
   RefreshCw,
   Coins,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
@@ -64,6 +65,31 @@ export const BusinessIdeasManagementPage: React.FC = () => {
   const [selectionReason, setSelectionReason] = useState('');
   const [selectionPrivateNotes, setSelectionPrivateNotes] = useState('');
   const [isSubmittingSelection, setIsSubmittingSelection] = useState(false);
+
+  // Submitter Consultation Meeting Modal State
+  const getTomorrowStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  };
+  const [showScheduleRequesterModal, setShowScheduleRequesterModal] = useState(false);
+  const [meetingDate, setMeetingDate] = useState(getTomorrowStr());
+  const [meetingTime, setMeetingTime] = useState('11:00');
+  const [meetingDuration, setMeetingDuration] = useState(45);
+  const [meetingMode, setMeetingMode] = useState<'VIRTUAL' | 'IN_PERSON'>('VIRTUAL');
+  const [meetingLink, setMeetingLink] = useState('https://meet.google.com/fic-consultation');
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [isSubmittingMeeting, setIsSubmittingMeeting] = useState(false);
+
+  // Interested Member Collaboration Meeting Modal State
+  const [schedulingInterest, setSchedulingInterest] = useState<any | null>(null);
+  const [interestMeetingDate, setInterestMeetingDate] = useState(getTomorrowStr());
+  const [interestMeetingTime, setInterestMeetingTime] = useState('15:00');
+  const [interestMeetingDuration, setInterestMeetingDuration] = useState(45);
+  const [interestMeetingMode, setInterestMeetingMode] = useState<'VIRTUAL' | 'IN_PERSON'>('VIRTUAL');
+  const [interestMeetingLink, setInterestMeetingLink] = useState('https://meet.google.com/fic-collab');
+  const [interestMeetingNotes, setInterestMeetingNotes] = useState('');
+  const [isSubmittingInterestMeeting, setIsSubmittingInterestMeeting] = useState(false);
 
   const { showAlert, showConfirm, showPrompt } = useDialog();
 
@@ -226,6 +252,123 @@ export const BusinessIdeasManagementPage: React.FC = () => {
       loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
     } catch (err: any) {
       showAlert(err.message || 'Failed to publish idea to marketplace', { severity: 'danger' });
+    }
+  };
+
+  // Schedule Consultation Meeting with Idea Submitter
+  const handleScheduleRequesterMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedIdea) return;
+    setIsSubmittingMeeting(true);
+    try {
+      const res = await apiFetch(`/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/schedule-meeting`, {
+        method: 'POST',
+        body: JSON.stringify({
+          date: meetingDate,
+          time: meetingTime,
+          durationMinutes: Number(meetingDuration) || 45,
+          mode: meetingMode,
+          linkOrLocation: meetingLink.trim(),
+          notes: meetingNotes.trim()
+        })
+      });
+      await showAlert(res?.message || 'Consultation meeting arranged successfully!', { severity: 'success' });
+      setShowScheduleRequesterModal(false);
+      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
+    } catch (err: any) {
+      showAlert(err.message || 'Failed to arrange consultation meeting', { severity: 'danger' });
+    } finally {
+      setIsSubmittingMeeting(false);
+    }
+  };
+
+  // Complete Consultation Meeting and Automatically Publish to Marketplace
+  const handleCompleteMeetingAndPublish = async () => {
+    if (!selectedIdea) return;
+    const confirmed = await showConfirm(
+      'Are you sure the consultation meeting has been completed? This will mark the meeting completed and automatically publish the business idea to the Universal Marketplace so interested members can discover it.',
+      {
+        title: 'Complete Meeting & Publish to Marketplace',
+        severity: 'success',
+        confirmText: 'Complete & Publish'
+      }
+    );
+    if (!confirmed) return;
+
+    setIsSubmittingMeeting(true);
+    try {
+      const res = await apiFetch(`/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/complete-meeting-publish`, {
+        method: 'POST',
+        body: JSON.stringify({
+          completionSummary: 'Consultation completed by FIC Admin. Validated and published for Universal Marketplace collaboration.'
+        })
+      });
+      await showAlert(res?.message || 'Meeting marked completed & Business Idea is now LIVE on Marketplace!', { severity: 'success' });
+      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
+    } catch (err: any) {
+      showAlert(err.message || 'Failed to complete meeting and publish', { severity: 'danger' });
+    } finally {
+      setIsSubmittingMeeting(false);
+    }
+  };
+
+  // Schedule Collaboration Meeting with an Interested Member
+  const handleScheduleInterestMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedIdea || !schedulingInterest) return;
+    setIsSubmittingInterestMeeting(true);
+    try {
+      const res = await apiFetch(
+        `/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/interests/${schedulingInterest._id}/schedule-meeting`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            date: interestMeetingDate,
+            time: interestMeetingTime,
+            durationMinutes: Number(interestMeetingDuration) || 45,
+            mode: interestMeetingMode,
+            linkOrLocation: interestMeetingLink.trim(),
+            notes: interestMeetingNotes.trim()
+          })
+        }
+      );
+      await showAlert(res?.message || `Collaboration meeting scheduled with ${schedulingInterest.interestedMemberName}!`, { severity: 'success' });
+      setSchedulingInterest(null);
+      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
+    } catch (err: any) {
+      showAlert(err.message || 'Failed to schedule collaboration meeting', { severity: 'danger' });
+    } finally {
+      setIsSubmittingInterestMeeting(false);
+    }
+  };
+
+  // Conclude / Remove Business Idea
+  const handleConcludeIdea = async () => {
+    if (!selectedIdea) return;
+    const confirmed = await showConfirm(
+      'Are you sure you want to conclude and remove this business idea? It will be marked as COMPLETED and removed from the active Marketplace.',
+      {
+        title: 'Conclude & Remove Business Idea',
+        severity: 'danger',
+        confirmText: 'Remove Business Idea'
+      }
+    );
+    if (!confirmed) return;
+
+    setIsSubmittingReview(true);
+    try {
+      const res = await apiFetch(`/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/conclude`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: adminNotes || 'Business idea concluded and completed by FIC Admin.'
+        })
+      });
+      await showAlert(res?.message || 'Business idea marked as completed and removed from Marketplace.', { severity: 'success' });
+      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
+    } catch (err: any) {
+      showAlert(err.message || 'Failed to conclude business idea', { severity: 'danger' });
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -907,38 +1050,130 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                     />
                   </div>
 
+                  {/* Consultation Meeting Scheduled / Completed Card */}
+                  {selectedIdea.meetingDetails?.date && (
+                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
+                          <Calendar className="w-4 h-4" />
+                          {selectedIdea.meetingDetails.isCompleted ? 'FIC Consultation Completed' : 'FIC Consultation Meeting Scheduled'}
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          {selectedIdea.meetingDetails.mode === 'IN_PERSON' ? 'In-Person Session' : 'Virtual Session'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[var(--text-primary)]">
+                        <div>
+                          <span className="text-[var(--text-secondary)]">Date & Time: </span>
+                          <strong>{selectedIdea.meetingDetails.date} at {selectedIdea.meetingDetails.time}</strong> ({selectedIdea.meetingDetails.durationMinutes || 45} mins)
+                        </div>
+                        {selectedIdea.meetingDetails.linkOrLocation && (
+                          <div>
+                            <span className="text-[var(--text-secondary)]">Access / Link: </span>
+                            <a
+                              href={selectedIdea.meetingDetails.linkOrLocation}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-400 font-bold hover:underline inline-flex items-center gap-1"
+                            >
+                              Open Link <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      {selectedIdea.meetingDetails.notes && (
+                        <p className="text-[11.5px] text-[var(--text-secondary)] bg-[var(--card-bg)] p-2.5 rounded-xl border border-[var(--border-color)]">
+                          <strong className="text-[var(--text-primary)]">Meeting Agenda / Notes: </strong>
+                          {selectedIdea.meetingDetails.notes}
+                        </p>
+                      )}
+
+                      {/* Complete Meeting & Publish to Marketplace */}
+                      {!selectedIdea.meetingDetails.isCompleted && (
+                        <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-indigo-500/20">
+                          <span className="text-[11px] text-indigo-300">
+                            Once consultation is done, complete meeting to automatically publish idea to Universal Marketplace:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCompleteMeetingAndPublish}
+                            disabled={isSubmittingMeeting}
+                            className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Complete Meeting & Publish to Marketplace
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Phase 7: State-Aware Action Buttons - Strict Status Validation */}
                   {(() => {
                     const st = (selectedIdea.status || selectedIdea.adminReviewStatus || '').toUpperCase();
+                    const isCompleted = st === 'COMPLETED' || st === 'CLOSED';
                     const isApproved = st === 'APPROVED' || st === 'SHARED_ON_MARKETPLACE' || st === 'ON_MARKETPLACE' || Boolean(selectedIdea.marketplacePublished);
                     const isRejected = st === 'REJECTED';
                     const isUnderReview = st === 'UNDER_REVIEW';
+                    const isMeetingScheduled = st === 'MEETING_SCHEDULED';
                     const isInfoRequested = st === 'INFORMATION_REQUESTED' || st === 'INFO_REQUESTED';
                     const isSubmitted = st === 'SUBMITTED' || st === 'PENDING' || !st;
 
+                    if (isCompleted) {
+                      return (
+                        <div className="p-3.5 bg-slate-500/10 border border-slate-500/20 rounded-xl flex items-center justify-between text-xs text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>
+                              <strong>Business Idea Concluded & Completed</strong> &bull; Archived and removed from active marketplace.
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     if (isApproved) {
                       return (
-                        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-400">
+                        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-400">
                           <div className="flex items-center gap-2">
                             <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                             <span>
-                              <strong>Idea Approved</strong> &bull; Validated and ready for Universal Marketplace collaboration.
+                              <strong>Idea Approved</strong> &bull; Validated for Universal Marketplace collaboration.
                             </span>
                           </div>
-                          {!selectedIdea.marketplacePublished ? (
+                          <div className="flex items-center gap-2 ml-auto">
+                            {!selectedIdea.marketplacePublished ? (
+                              <button
+                                onClick={handlePublishToMarketplace}
+                                className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <Share2 className="w-3.5 h-3.5" />
+                                Publish to Marketplace
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+                                <Check className="w-3.5 h-3.5" />
+                                Live on Marketplace
+                              </span>
+                            )}
                             <button
-                              onClick={handlePublishToMarketplace}
-                              className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                              type="button"
+                              onClick={() => setShowScheduleRequesterModal(true)}
+                              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
                             >
-                              <Share2 className="w-3.5 h-3.5" />
-                              Publish to Marketplace
+                              <Calendar className="w-3.5 h-3.5" />
+                              {selectedIdea.meetingDetails?.date ? 'Reschedule Meeting' : 'Arrange Meeting'}
                             </button>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 ml-auto">
-                              <Check className="w-3.5 h-3.5" />
-                              Live on Marketplace
-                            </span>
-                          )}
+                            <button
+                              type="button"
+                              onClick={handleConcludeIdea}
+                              disabled={isSubmittingReview}
+                              className="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Remove Business Idea
+                            </button>
+                          </div>
                         </div>
                       );
                     }
@@ -973,6 +1208,16 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                           </button>
                         )}
 
+                        {/* Arrange Consultation Meeting with Submitter */}
+                        <button
+                          type="button"
+                          onClick={() => setShowScheduleRequesterModal(true)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          {selectedIdea.meetingDetails?.date ? 'Reschedule Meeting' : 'Arrange Meeting'}
+                        </button>
+
                         {/* Request Clarification (allowed in SUBMITTED or UNDER_REVIEW) */}
                         <button
                           onClick={() => handleReviewAction('REQUEST_INFO')}
@@ -1003,8 +1248,19 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                           Reject Idea
                         </button>
 
+                        {/* Remove Business Idea Button */}
+                        <button
+                          type="button"
+                          onClick={handleConcludeIdea}
+                          disabled={isSubmittingReview}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Remove Business Idea
+                        </button>
+
                         {isInfoRequested && (
-                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 ml-auto">
+                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                             Awaiting member clarification
                           </span>
                         )}
@@ -1090,8 +1346,40 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                             )}
                           </div>
 
+                          {/* If meeting scheduled with this interested member */}
+                          {interest.meetingDetails?.date && (
+                            <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 text-purple-300 font-semibold">
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>Collaboration Meeting: {interest.meetingDetails.date} at {interest.meetingDetails.time}</span>
+                              </div>
+                              {interest.meetingDetails.linkOrLocation && (
+                                <a
+                                  href={interest.meetingDetails.linkOrLocation}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-purple-400 font-bold hover:underline inline-flex items-center gap-1 text-[11px]"
+                                >
+                                  Meeting Link <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+
                           {/* Action Buttons for this Interested Member */}
-                          <div className="flex items-center justify-end gap-2 pt-1">
+                          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSchedulingInterest(interest);
+                                setInterestMeetingNotes(`Introductory collaboration meeting between ${selectedIdea.submitterName} and ${interest.interestedMemberName} regarding idea "${selectedIdea.title}"`);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition-all cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              {interest.meetingDetails?.date ? 'Reschedule Meeting' : 'Arrange Meeting'}
+                            </button>
+
                             <button
                               onClick={() => handleUpdateInterestStatus(interest, 'SHORTLISTED')}
                               className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all cursor-pointer"
@@ -1330,6 +1618,280 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                   >
                     <Check className="w-3.5 h-3.5" />
                     Confirm Selection
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Schedule Consultation Meeting with Idea Submitter */}
+        {showScheduleRequesterModal && selectedIdea && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            >
+              <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[var(--text-primary)]">
+                      Arrange Meeting with Idea Submitter
+                    </h4>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      {selectedIdea.submitterName} ({selectedIdea.submitterEmail})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleRequesterModal(false)}
+                  className="p-1 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleScheduleRequesterMeeting} className="p-5 space-y-4 text-xs">
+                <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl space-y-1">
+                  <span className="font-bold text-sky-400 block">Consultation Coordination:</span>
+                  <p className="text-[11px] text-sky-300 leading-relaxed">
+                    Scheduling this consultation creates an official meeting entry in the Meetings Desk and sends an in-app notification to the idea submitter.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={meetingDate}
+                      onChange={(e) => setMeetingDate(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Time *</label>
+                    <input
+                      type="time"
+                      required
+                      value={meetingTime}
+                      onChange={(e) => setMeetingTime(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Duration (Minutes)</label>
+                    <input
+                      type="number"
+                      min={15}
+                      step={15}
+                      value={meetingDuration}
+                      onChange={(e) => setMeetingDuration(Number(e.target.value))}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Session Mode</label>
+                    <select
+                      value={meetingMode}
+                      onChange={(e) => setMeetingMode(e.target.value as any)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      <option value="VIRTUAL">Virtual (Video Call)</option>
+                      <option value="IN_PERSON">In-Person Office Meeting</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-[var(--text-secondary)] block">
+                    {meetingMode === 'VIRTUAL' ? 'Meeting Link (Google Meet / Zoom) *' : 'Office Location Address *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                    placeholder={meetingMode === 'VIRTUAL' ? 'https://meet.google.com/xyz...' : 'FIC Headquarters, Conference Hall A'}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-[var(--text-secondary)] block">
+                    Meeting Agenda / Confidential Notes:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={meetingNotes}
+                    onChange={(e) => setMeetingNotes(e.target.value)}
+                    placeholder="e.g., Review unit economics, market viability, patent requirements, and team setup..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleRequesterModal(false)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingMeeting || !meetingDate || !meetingTime || !meetingLink.trim()}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {isSubmittingMeeting ? 'Scheduling...' : 'Confirm & Schedule Call'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Schedule Collaboration Meeting with Interested Member */}
+        {schedulingInterest && selectedIdea && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            >
+              <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[var(--text-primary)]">
+                      Arrange Meeting with Interested Member
+                    </h4>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
+                      {schedulingInterest.interestedMemberName} ({schedulingInterest.interestedEmail})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSchedulingInterest(null)}
+                  className="p-1 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleScheduleInterestMeeting} className="p-5 space-y-4 text-xs">
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-1">
+                  <span className="font-bold text-purple-400 block">Tripartite Meeting Arrangement:</span>
+                  <p className="text-[11px] text-purple-300 leading-relaxed">
+                    This arranges a joint consultation between Idea Submitter ({selectedIdea.submitterName}), Interested Contributor ({schedulingInterest.interestedMemberName}), and FIC Admin.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={interestMeetingDate}
+                      onChange={(e) => setInterestMeetingDate(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Time *</label>
+                    <input
+                      type="time"
+                      required
+                      value={interestMeetingTime}
+                      onChange={(e) => setInterestMeetingTime(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Duration (Minutes)</label>
+                    <input
+                      type="number"
+                      min={15}
+                      step={15}
+                      value={interestMeetingDuration}
+                      onChange={(e) => setInterestMeetingDuration(Number(e.target.value))}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[var(--text-secondary)] block">Session Mode</label>
+                    <select
+                      value={interestMeetingMode}
+                      onChange={(e) => setInterestMeetingMode(e.target.value as any)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="VIRTUAL">Virtual (Video Call)</option>
+                      <option value="IN_PERSON">In-Person Office Meeting</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-[var(--text-secondary)] block">
+                    {interestMeetingMode === 'VIRTUAL' ? 'Meeting Link (Google Meet / Zoom) *' : 'Office Location Address *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={interestMeetingLink}
+                    onChange={(e) => setInterestMeetingLink(e.target.value)}
+                    placeholder={interestMeetingMode === 'VIRTUAL' ? 'https://meet.google.com/xyz...' : 'FIC Headquarters, Conference Hall A'}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-[var(--text-secondary)] block">
+                    Coordination Notes:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={interestMeetingNotes}
+                    onChange={(e) => setInterestMeetingNotes(e.target.value)}
+                    placeholder="e.g., Joint collaboration discussion on manufacturing capability and commercial terms..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
+                  <button
+                    type="button"
+                    onClick={() => setSchedulingInterest(null)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingInterestMeeting || !interestMeetingDate || !interestMeetingTime || !interestMeetingLink.trim()}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {isSubmittingInterestMeeting ? 'Scheduling...' : 'Confirm & Schedule Call'}
                   </button>
                 </div>
               </form>
