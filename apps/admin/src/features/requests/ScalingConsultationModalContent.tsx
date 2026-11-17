@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TrendingUp,
   MapPin,
@@ -12,7 +12,10 @@ import {
   Clock,
   CheckCircle2,
   User,
+  X
 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AuthenticatedDocumentPreview } from '../../components/AuthenticatedDocumentPreview';
 
 interface ScalingConsultationModalContentProps {
   selectedReq: any;
@@ -69,6 +72,7 @@ export const ScalingConsultationModalContent: React.FC<ScalingConsultationModalC
   adminNotes,
   setAdminNotes,
 }) => {
+  const [viewingDocument, setViewingDocument] = useState<any | null>(null);
   const currentStatus = scalingDoc?.status || selectedReq?.status || 'SUBMITTED';
 
   return (
@@ -199,17 +203,14 @@ export const ScalingConsultationModalContent: React.FC<ScalingConsultationModalC
                       <p className="text-[10px] text-slate-400">{doc.fileType || 'PDF / Attachment'}</p>
                     </div>
                   </div>
-                  {doc.fileUrl && doc.fileUrl !== '#' && (
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors inline-flex items-center gap-1 shrink-0"
-                    >
-                      <span>View</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setViewingDocument(doc)}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>View</span>
+                  </button>
                 </div>
               ))}
             </div>
@@ -624,6 +625,73 @@ export const ScalingConsultationModalContent: React.FC<ScalingConsultationModalC
           <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
             Important: The Scaling workflow ends after the meeting is completed. No further marketplace publishing or provider assignments apply.
           </p>
+        </div>
+      )}
+
+      {/* In-App Document Inspection / Preview Modal */}
+      {viewingDocument && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden flex flex-col"
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 shrink-0">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">
+                    {viewingDocument.name || viewingDocument.fileName || 'Supporting Document'}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <span>{viewingDocument.fileType || 'Document'}</span>
+                    {viewingDocument.fileSize && (
+                      <span>&bull; {(viewingDocument.fileSize / (1024 * 1024)).toFixed(2)} MB</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewingDocument(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Body */}
+            <div className="p-5 flex-1 overflow-y-auto bg-white dark:bg-slate-900">
+              <AuthenticatedDocumentPreview
+                documentId={viewingDocument.documentId || viewingDocument.fileUrl?.match(/\/documents\/([A-Za-z0-9_-]+)/)?.[1]}
+                fileUrl={viewingDocument.fileUrl}
+                fileName={viewingDocument.name || viewingDocument.fileName}
+                originalMimeType={viewingDocument.fileType}
+                title={viewingDocument.name}
+                maxHeightClass="max-h-[68vh]"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-850 shrink-0">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                Confidential Scaling Consultation Asset &bull; Private Vault Protected
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingDocument(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                Close Document
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </>

@@ -303,25 +303,23 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 overflow-hidden">
       {/* Full Viewport Backdrop */}
       <div
         onClick={onClose}
         className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm transition-opacity"
       />
 
-      {/* Centering Wrapper guaranteeing true viewport centering and no top clipping */}
-      <div className="flex min-h-full items-center justify-center p-3 sm:p-6 text-center pointer-events-none">
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 6 }}
-          transition={{ duration: 0.2 }}
-          className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[88vh] text-left pointer-events-auto z-10"
-        >
-          {/* Header */}
-          <div className="px-5 py-4 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      {/* Modal Window - Perfectly Viewport-Centered Popup */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 6 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh] text-left z-10 my-auto"
+      >
+        {/* Header */}
+        <div className="px-5 py-4 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
                 <Bell className="w-5 h-5" />
@@ -367,7 +365,7 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
           </div>
 
           {/* Search Bar & Tabs */}
-          <div className="p-3 sm:px-5 sm:pt-3 sm:pb-2 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 space-y-2.5">
+          <div className="p-3 sm:px-5 sm:pt-3 sm:pb-2 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 space-y-2.5 shrink-0">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -407,16 +405,14 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('ALL')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'ALL'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'ALL'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <span>All</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'ALL' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'ALL' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}>
                   {counts.all}
                 </span>
               </button>
@@ -424,17 +420,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('UNREAD')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'UNREAD'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'UNREAD'
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <span>Unread</span>
                 {counts.unread > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                    activeTab === 'UNREAD' ? 'bg-white/25 text-white' : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
-                  }`}>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'UNREAD' ? 'bg-white/25 text-white' : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                    }`}>
                     {counts.unread}
                   </span>
                 )}
@@ -443,17 +437,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('SERVICES')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'SERVICES'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'SERVICES'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <Briefcase className="w-3.5 h-3.5" />
                 <span>Service Requests</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'SERVICES' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'SERVICES' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.services}
                 </span>
               </button>
@@ -461,17 +453,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('IDEAS_SCALING')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'IDEAS_SCALING'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'IDEAS_SCALING'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <Lightbulb className="w-3.5 h-3.5" />
                 <span>Ideas & Scaling</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'IDEAS_SCALING' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'IDEAS_SCALING' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.ideasScaling}
                 </span>
               </button>
@@ -479,17 +469,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('FUNDING')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'FUNDING'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'FUNDING'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <IndianRupee className="w-3.5 h-3.5" />
                 <span>Funding</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'FUNDING' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'FUNDING' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.funding}
                 </span>
               </button>
@@ -497,17 +485,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('MEETINGS')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'MEETINGS'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'MEETINGS'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <Video className="w-3.5 h-3.5" />
                 <span>Meetings</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'MEETINGS' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'MEETINGS' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.meetings}
                 </span>
               </button>
@@ -515,17 +501,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('KYC')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'KYC'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'KYC'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>KYC</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'KYC' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'KYC' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.kyc}
                 </span>
               </button>
@@ -533,17 +517,15 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
               <button
                 type="button"
                 onClick={() => setActiveTab('PAYMENTS_SUPPORT')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'PAYMENTS_SUPPORT'
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'PAYMENTS_SUPPORT'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <CreditCard className="w-3.5 h-3.5" />
                 <span>Payments & Support</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'PAYMENTS_SUPPORT' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
-                }`}>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'PAYMENTS_SUPPORT' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                  }`}>
                   {counts.paymentsSupport}
                 </span>
               </button>
@@ -551,7 +533,7 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
           </div>
 
           {/* Notifications Scroll Body */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 p-2">
+          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-slate-100 dark:divide-slate-800 p-2">
             {filtered.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
@@ -565,8 +547,8 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
                     {searchQuery
                       ? `No notifications match "${searchQuery}". Try a different keyword.`
                       : activeTab === 'UNREAD'
-                      ? 'All operational alerts are marked as read.'
-                      : 'There are no notifications in this category.'}
+                        ? 'All operational alerts are marked as read.'
+                        : 'There are no notifications in this category.'}
                   </p>
                 </div>
                 {(searchQuery || activeTab !== 'ALL') && (
@@ -587,11 +569,10 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
                 <div
                   key={item.id}
                   onClick={() => handleItemClick(item)}
-                  className={`p-3.5 sm:p-4 rounded-xl transition-all cursor-pointer flex items-start gap-3.5 group ${
-                    item.isRead
+                  className={`p-3.5 sm:p-4 rounded-xl transition-all cursor-pointer flex items-start gap-3.5 group ${item.isRead
                       ? 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 opacity-80'
                       : 'bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/70 border-l-4 border-indigo-600'
-                  }`}
+                    }`}
                 >
                   {renderIcon(item)}
 
@@ -645,7 +626,7 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
           </div>
 
           {/* Footer */}
-          <div className="px-5 py-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div className="px-5 py-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <span>
               Showing {filtered.length} of {notifications.length} notification{notifications.length === 1 ? '' : 's'}
             </span>
@@ -658,7 +639,6 @@ export const AdminNotificationCenterModal: React.FC<AdminNotificationCenterModal
             </button>
           </div>
         </motion.div>
-      </div>
     </div>,
     document.body
   );

@@ -28,6 +28,7 @@ import { apiFetch } from '../../services/api';
 import { containerVariants, itemVariants } from '../../utils/animations';
 import { SkeletonCards } from '../../components/Skeleton';
 import { useDialog } from '../../context/DialogContext';
+import { AuthenticatedDocumentPreview } from '../../components/AuthenticatedDocumentPreview';
 
 export const BusinessScalingManagementPage: React.FC = () => {
   const [scalingRequests, setScalingRequests] = useState<any[]>([]);
@@ -35,6 +36,7 @@ export const BusinessScalingManagementPage: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
+  const [viewingDocument, setViewingDocument] = useState<any | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [statusFilter, setStatusFilter] = useState(() => {
@@ -74,11 +76,33 @@ export const BusinessScalingManagementPage: React.FC = () => {
 
   useEffect(() => {
     loadScalingRequests();
+
+    // Responsive auto-synchronization every 6 seconds without full page reload
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadScalingRequests(undefined, true);
+      }
+    }, 6000);
+
+    const handleFocusSync = () => {
+      loadScalingRequests(undefined, true);
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    document.addEventListener('visibilitychange', handleFocusSync);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocusSync);
+      document.removeEventListener('visibilitychange', handleFocusSync);
+    };
   }, [statusFilter, supportTypeFilter]);
 
-  const loadScalingRequests = async (keepSelectedId?: string) => {
-    setLoading(true);
-    setLoadError(null);
+  const loadScalingRequests = async (keepSelectedId?: string, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const params = new URLSearchParams();
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
@@ -89,14 +113,27 @@ export const BusinessScalingManagementPage: React.FC = () => {
       const list = res?.items || (Array.isArray(res) ? res : res?.data?.items || []);
       setScalingRequests(list);
 
+      // Keep open modal synchronized with latest server data in real-time
+      if (selectedRequest) {
+        const targetId = selectedRequest._id || selectedRequest.requestId;
+        const fresh = list.find((item: any) => (item._id && item._id === targetId) || (item.requestId && item.requestId === targetId));
+        if (fresh) {
+          setSelectedRequest((prev: any) => ({ ...prev, ...fresh }));
+        }
+      }
+
       if (keepSelectedId) {
         fetchRequestDetails(keepSelectedId);
       }
     } catch (err: any) {
-      console.error('Failed to load scaling requests:', err);
-      setLoadError(err.message || 'Failed to connect to backend server');
+      if (!silent) {
+        console.error('Failed to load scaling requests:', err);
+        setLoadError(err.message || 'Failed to connect to backend server');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -827,17 +864,14 @@ export const BusinessScalingManagementPage: React.FC = () => {
                               <div className="text-[10px] text-[var(--text-secondary)]">{doc.fileType || 'Document'}</div>
                             </div>
                           </div>
-                          {doc.fileUrl && doc.fileUrl !== '#' && (
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              View
-                            </a>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setViewingDocument(doc)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            View
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1171,6 +1205,73 @@ export const BusinessScalingManagementPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* In-App Document Inspection / Preview Modal */}
+      {viewingDocument && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden flex flex-col"
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]/60 shrink-0">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm sm:text-base text-[var(--text-primary)] truncate">
+                    {viewingDocument.name || viewingDocument.fileName || 'Supporting Document'}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                    <span>{viewingDocument.fileType || 'Document'}</span>
+                    {viewingDocument.fileSize && (
+                      <span>&bull; {(viewingDocument.fileSize / (1024 * 1024)).toFixed(2)} MB</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewingDocument(null)}
+                  className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Body */}
+            <div className="p-5 flex-1 overflow-y-auto bg-[var(--card-bg)]">
+              <AuthenticatedDocumentPreview
+                documentId={viewingDocument.documentId || viewingDocument.fileUrl?.match(/\/documents\/([A-Za-z0-9_-]+)/)?.[1]}
+                fileUrl={viewingDocument.fileUrl}
+                fileName={viewingDocument.name || viewingDocument.fileName}
+                originalMimeType={viewingDocument.fileType}
+                title={viewingDocument.name}
+                maxHeightClass="max-h-[68vh]"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[var(--border-color)] flex items-center justify-between gap-2 bg-[var(--bg-secondary)]/30 shrink-0">
+              <div className="text-[11px] text-[var(--text-secondary)]">
+                Confidential Scaling Advisory Asset &bull; Private Vault Protected
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingDocument(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all cursor-pointer"
+              >
+                Close Document
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
