@@ -8,6 +8,7 @@ import { SkeletonList } from '../../components/Skeleton';
 export const SupportTicketsPage: React.FC = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
 
@@ -29,15 +30,22 @@ export const SupportTicketsPage: React.FC = () => {
 
   const loadTickets = async () => {
     setLoading(true);
-    await loadTicketsSilently();
-    setLoading(false);
+    setLoadError(null);
+    try {
+      await loadTicketsSilently();
+    } catch (err: any) {
+      setLoadError(err.message || 'Failed to connect to backend server');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadTicketsSilently = async () => {
     try {
       let url = `/api/admin/support/tickets?status=${statusFilter}&priority=${priorityFilter}`;
       const data = await apiFetch(url);
-      setTickets(data);
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setTickets(list);
       if (selectedTicket) {
         const updated = data.find((t: any) => t._id === selectedTicket._id);
         if (updated) setSelectedTicket(updated);

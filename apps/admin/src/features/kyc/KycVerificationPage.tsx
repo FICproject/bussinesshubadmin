@@ -36,6 +36,7 @@ export const KycVerificationPage: React.FC = () => {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState(() => {
     const s = searchParams.get('status');
@@ -127,17 +128,20 @@ export const KycVerificationPage: React.FC = () => {
 
   const loadSubmissions = async (syncSelectedId?: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch(`/api/admin/kyc?status=${filterStatus}`);
-      setSubmissions(data);
-      if (syncSelectedId && Array.isArray(data)) {
-        const refreshed = data.find((s: any) => s._id === syncSelectedId);
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setSubmissions(list);
+      if (syncSelectedId && Array.isArray(list)) {
+        const refreshed = list.find((s: any) => s._id === syncSelectedId);
         if (refreshed) {
           setSelectedSubmission(refreshed);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load KYC list', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }
@@ -486,6 +490,20 @@ export const KycVerificationPage: React.FC = () => {
         ) : (
           <SkeletonCards count={6} />
         )
+      ) : loadError ? (
+        <div className="p-10 text-center bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-xs space-y-3">
+          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
+          <h3 className="text-sm font-bold text-rose-400">Failed to load KYC applications</h3>
+          <p className="text-xs text-rose-300/80 max-w-md mx-auto">{loadError}</p>
+          <div className="pt-2">
+            <button
+              onClick={() => loadSubmissions()}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
       ) : filteredSubmissions.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <ShieldCheck className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3 opacity-60" />

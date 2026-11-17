@@ -11,6 +11,7 @@ import { useDialog } from '../../context/DialogContext';
 export const MembersPage: React.FC = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => {
@@ -37,14 +38,17 @@ export const MembersPage: React.FC = () => {
 
   const loadMembers = async (showSkeleton = true) => {
     if (showSkeleton) setLoading(true);
+    setLoadError(null);
     try {
       let url = `/api/admin/members?status=${statusFilter}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       const data = await apiFetch(url);
-      const approvedOnly = Array.isArray(data) ? data.filter((m: any) => m.kycStatus === 'APPROVED') : [];
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      const approvedOnly = list.filter((m: any) => m.kycStatus === 'APPROVED');
       setMembers(approvedOnly);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load members', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       if (showSkeleton) setLoading(false);
     }
@@ -215,6 +219,20 @@ export const MembersPage: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="p-0">
                     <SkeletonTable rows={5} cols={7} />
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <p className="text-xs text-rose-500 font-semibold">{loadError}</p>
+                      <button
+                        onClick={() => loadMembers()}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+                      >
+                        Retry Members Connection
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : filteredMembers.length === 0 ? (

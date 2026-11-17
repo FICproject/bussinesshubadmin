@@ -9,6 +9,7 @@ import { useDialog } from '../../context/DialogContext';
 export const AuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
 
   // Project baseline start date (e.g. 2026-08-25 when FIC was initialized)
@@ -80,6 +81,7 @@ export const AuditLogsPage: React.FC = () => {
 
     try {
       setLoading(true);
+      setLoadError(null);
       const params = new URLSearchParams();
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
@@ -88,9 +90,11 @@ export const AuditLogsPage: React.FC = () => {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
       const data = await apiFetch(`/api/admin/dashboard/audit-logs?${params.toString()}`);
-      setLogs(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setLogs(list);
     } catch (err: any) {
       console.error('Failed to load audit logs', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }
@@ -115,7 +119,7 @@ export const AuditLogsPage: React.FC = () => {
       if (selectedEntity !== 'ALL') params.set('entityType', selectedEntity);
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
-      const response = await fetch(`/api/admin/dashboard/export-audit-logs?${params.toString()}`, {
+      const response = await fetch(`${(import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://fic-businesshub-backend.onrender.com' : '')).replace(/\/+$/, '')}/api/admin/dashboard/export-audit-logs?${params.toString()}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },

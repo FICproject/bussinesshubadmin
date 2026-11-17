@@ -63,6 +63,7 @@ interface ReferralSummary {
 export const ReferralBonusPage: React.FC = () => {
   const [data, setData] = useState<ReferralSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'APPROVED' | 'PENDING'>('ALL');
 
@@ -83,13 +84,15 @@ export const ReferralBonusPage: React.FC = () => {
   const loadReferralSummary = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await apiFetch('/api/admin/referrals/summary');
       setData(res);
       if (res?.config) {
         setEditBonusAmount(res.config.bonusPerReferral);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load referral bonus data', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }

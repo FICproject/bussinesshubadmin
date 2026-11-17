@@ -40,6 +40,7 @@ import { AuthenticatedDocumentPreview } from '../../components/AuthenticatedDocu
 export const BusinessIdeasManagementPage: React.FC = () => {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -112,10 +113,11 @@ export const BusinessIdeasManagementPage: React.FC = () => {
 
   const loadIdeas = async (keepSelectedId?: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
       const res = await apiFetch(`/api/admin/business-ideas${qs}`);
-      const list = res?.items || (Array.isArray(res) ? res : []);
+      const list = res?.items || (Array.isArray(res) ? res : res?.data?.items || []);
       setIdeas(list);
 
       if (keepSelectedId) {
@@ -123,6 +125,7 @@ export const BusinessIdeasManagementPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to load business ideas:', err);
+      setLoadError(err.message || 'Failed to connect to backend server. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -680,6 +683,21 @@ export const BusinessIdeasManagementPage: React.FC = () => {
       {/* 4. Idea Listings Table or Grid */}
       {loading ? (
         <SkeletonCards count={6} />
+      ) : loadError ? (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-10 text-center space-y-3">
+          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
+          <h3 className="text-base font-bold text-rose-400">Unable to Load Business Ideas</h3>
+          <p className="text-xs text-rose-300/80 max-w-md mx-auto">{loadError}</p>
+          <div className="pt-2">
+            <button
+              onClick={() => loadIdeas()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry Connection
+            </button>
+          </div>
+        </div>
       ) : filteredIdeas.length === 0 ? (
         <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-12 text-center space-y-3">
           <Lightbulb className="w-12 h-12 text-[var(--text-secondary)] mx-auto opacity-40" />

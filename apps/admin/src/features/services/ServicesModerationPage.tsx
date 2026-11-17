@@ -10,6 +10,7 @@ import { useDialog } from '../../context/DialogContext';
 export const ServicesModerationPage: React.FC = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedServiceForView, setSelectedServiceForView] = useState<any | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState(() => {
@@ -35,14 +36,17 @@ export const ServicesModerationPage: React.FC = () => {
 
   const loadListings = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch(`/api/admin/services?status=${filterStatus}`);
-      const nonDeleted = (Array.isArray(data) ? data : []).filter(
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      const nonDeleted = list.filter(
         (item: any) => item.status !== 'DELETED' && item.status !== 'ARCHIVED'
       );
       setListings(nonDeleted);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load listings', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }

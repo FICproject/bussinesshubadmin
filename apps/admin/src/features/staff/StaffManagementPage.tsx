@@ -28,6 +28,7 @@ export const StaffManagementPage: React.FC = () => {
   const { user: currentLoggedInUser } = useAuth();
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStaffUser, setSelectedStaffUser] = useState<any | null>(null);
 
@@ -50,10 +51,14 @@ export const StaffManagementPage: React.FC = () => {
 
   const loadStaff = async () => {
     try {
+      setLoading(true);
+      setLoadError(null);
       const data = await apiFetch('/api/admin/auth/staff');
-      setStaff(data);
-    } catch (err) {
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setStaff(list);
+    } catch (err: any) {
       console.error('Failed to load staff list', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }

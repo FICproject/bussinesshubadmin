@@ -111,6 +111,7 @@ export const getMeetingParticipants = (meeting: any): IUnifiedParticipant[] => {
 export const MeetingsPage: React.FC = () => {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
 
@@ -149,13 +150,16 @@ export const MeetingsPage: React.FC = () => {
 
   const loadMeetings = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       let url = `/api/admin/meetings?status=${statusFilter}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       const data = await apiFetch(url);
-      setMeetings(data);
-    } catch (err) {
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setMeetings(list);
+    } catch (err: any) {
       console.error('Failed to load meetings', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }

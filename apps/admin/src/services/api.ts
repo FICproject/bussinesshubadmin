@@ -3,8 +3,11 @@ import { AdminRole, AdminUser } from '@fic/shared-types';
 const TOKEN_KEY = 'fic_admin_token';
 const USER_KEY = 'fic_admin_user';
 
-// Base API URL configurable via environment variable VITE_API_BASE_URL (defaults to empty string for relative proxying)
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+// Base API URL configurable via environment variable VITE_API_BASE_URL (defaults to Render backend in production, or relative / empty for dev proxy)
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? 'https://fic-businesshub-backend.onrender.com' : '')
+).replace(/\/+$/, '');
 
 export const getStoredAuth = (): { token: string | null; user: AdminUser | null } => {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -30,7 +33,7 @@ export const clearStoredAuth = () => {
   localStorage.removeItem(USER_KEY);
 };
 
-export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T = any>(endpoint: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const { token } = getStoredAuth();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -45,10 +48,25 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     ? endpoint
     : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const timeoutMs = options.timeoutMs ?? 25000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+  } catch (fetchErr: any) {
+    if (fetchErr.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s. Please check backend connection and retry.`);
+    }
+    throw new Error(fetchErr.message || 'Network error: could not connect to server.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   let data: any = null;
   const text = await response.text();

@@ -23,6 +23,7 @@ import { useDialog } from '../../context/DialogContext';
 export const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -47,15 +48,18 @@ export const CategoriesPage: React.FC = () => {
 
   const loadCategories = async () => {
     try {
+      setLoading(true);
+      setLoadError(null);
       const data = await apiFetch('/api/admin/categories');
-      setCategories(data);
-      // Keep selectedCategory in sync if open
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setCategories(list);
       if (selectedCategory) {
-        const refreshed = data.find((c: any) => c._id === selectedCategory._id);
+        const refreshed = list.find((c: any) => c._id === selectedCategory._id);
         if (refreshed) setSelectedCategory(refreshed);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load categories', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }
@@ -275,6 +279,20 @@ export const CategoriesPage: React.FC = () => {
 
       {loading ? (
         <SkeletonCards count={4} gridCols="grid-cols-1 md:grid-cols-2" />
+      ) : loadError ? (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-10 text-center space-y-3">
+          <FolderTree className="w-10 h-10 text-rose-500 mx-auto opacity-70" />
+          <h3 className="text-base font-bold text-rose-400">Unable to Load Categories</h3>
+          <p className="text-xs text-rose-300/80 max-w-md mx-auto">{loadError}</p>
+          <div className="pt-2">
+            <button
+              onClick={() => loadCategories()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
       ) : filteredCategories.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-xs">
           <FolderTree className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />

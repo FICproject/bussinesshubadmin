@@ -77,6 +77,7 @@ export const FundingDeskPage: React.FC<FundingDeskPageProps> = ({ defaultTab }) 
     }
   }, [defaultTab, location.pathname, searchParams]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // ========================================================
@@ -148,30 +149,38 @@ export const FundingDeskPage: React.FC<FundingDeskPageProps> = ({ defaultTab }) 
 
   const loadTabData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       if (activeTab === 'FUNDING_REQUESTS') {
         const qs = fundingStatusFilter !== 'ALL' ? `?status=${fundingStatusFilter}` : '';
         const res = await apiFetch(`/api/admin/funding/requests${qs}`);
-        setFundingRequests(res?.items || res?.data || []);
+        const list = Array.isArray(res) ? res : (res?.items || res?.data || []);
+        setFundingRequests(list);
       } else if (activeTab === 'INVESTMENT_REQUESTS') {
         const qs = investmentStatusFilter !== 'ALL' ? `?status=${investmentStatusFilter}` : '';
         const res = await apiFetch(`/api/admin/funding/investment-requests${qs}`);
-        setInvestmentRequests(res?.items || res?.data || []);
+        const list = Array.isArray(res) ? res : (res?.items || res?.data || []);
+        setInvestmentRequests(list);
       } else if (activeTab === 'FUND_RELEASE') {
         const res = await apiFetch('/api/admin/funding/fund-releases');
-        setFundReleases(res?.data || res?.items || []);
+        const list = Array.isArray(res) ? res : (res?.data || res?.items || []);
+        setFundReleases(list);
       } else if (activeTab === 'RETURNS_MATURITY') {
         const res = await apiFetch('/api/admin/funding/returns-maturity');
-        setReturnsMaturityList(res?.data || res?.items || []);
+        const list = Array.isArray(res) ? res : (res?.data || res?.items || []);
+        setReturnsMaturityList(list);
       } else if (activeTab === 'MATURITY_RELEASE') {
         const res = await apiFetch('/api/admin/funding/maturity-releases');
-        setMaturityReleases(res?.data || res?.items || []);
+        const list = Array.isArray(res) ? res : (res?.data || res?.items || []);
+        setMaturityReleases(list);
       } else if (activeTab === 'POOLS') {
         const res = await apiFetch('/api/admin/funding/pools');
-        setPools(res?.pools || res?.data || []);
+        const list = Array.isArray(res) ? res : (res?.pools || res?.data || []);
+        setPools(list);
       }
     } catch (err: any) {
       console.warn('Failed to load admin funding data:', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,7 @@ export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [financials, setFinancials] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [isMonthLoading, setIsMonthLoading] = useState<boolean>(false);
   const navigate = useNavigate();
@@ -37,6 +38,8 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const loadAllDashboardData = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const [statsData, finData] = await Promise.all([
         apiFetch('/api/admin/dashboard/stats'),
@@ -44,8 +47,9 @@ export const DashboardPage: React.FC = () => {
       ]);
       setStats(statsData);
       setFinancials(finData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load dashboard metrics', err);
+      setLoadError(err.message || 'Failed to connect to backend server. Please verify backend availability.');
     } finally {
       setLoading(false);
     }
@@ -68,6 +72,26 @@ export const DashboardPage: React.FC = () => {
           <div className="lg:col-span-8">
             <Skeleton className="h-44 w-full rounded-xl" />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-12 text-center space-y-4 max-w-xl mx-auto my-12">
+        <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+          <Activity className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-rose-300">Unable to Load Operations Dashboard</h2>
+        <p className="text-xs text-rose-200/80 leading-relaxed">{loadError}</p>
+        <div className="pt-2">
+          <button
+            onClick={() => loadAllDashboardData()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+          >
+            Retry Dashboard Connection
+          </button>
         </div>
       </div>
     );

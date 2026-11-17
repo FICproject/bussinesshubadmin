@@ -34,6 +34,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 export const RequestsDeskPage: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,22 +78,28 @@ export const RequestsDeskPage: React.FC = () => {
   );
 
   const loadRequests = async (keepSelectedId?: string, isBackground = false) => {
-    if (!isBackground) setLoading(true);
+    if (!isBackground) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const params = new URLSearchParams();
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
       const qs = params.toString() ? '?' + params.toString() : '';
       const res = await apiFetch('/api/admin/requests' + qs);
-      const data = res?.data || res || [];
-      const list = Array.isArray(data) ? data : [];
+      const rawData = res?.data || res || [];
+      const list = Array.isArray(rawData) ? rawData : (res?.items || rawData?.items || []);
       setRequests(list);
       const targetId = keepSelectedId || selectedReq?._id || selectedReq?.requestId;
       if (targetId) {
         const updated = list.find((r: any) => r._id === targetId || r.requestId === targetId);
         if (updated) setSelectedReq(updated);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load service requests', err);
+      if (!isBackground) {
+        setLoadError(err.message || 'Failed to connect to backend server');
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }
@@ -616,6 +623,20 @@ export const RequestsDeskPage: React.FC = () => {
       {/* 4. Requests List / Table */}
       {loading ? (
         <SkeletonCards count={6} />
+      ) : loadError ? (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-10 text-center space-y-3">
+          <GitPullRequest className="w-10 h-10 text-rose-500 mx-auto opacity-70" />
+          <h3 className="text-base font-bold text-rose-400">Unable to Load Service Requests</h3>
+          <p className="text-xs text-rose-300/80 max-w-md mx-auto">{loadError}</p>
+          <div className="pt-2">
+            <button
+              onClick={() => loadRequests()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
       ) : filteredRequests.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 mx-auto flex items-center justify-center">

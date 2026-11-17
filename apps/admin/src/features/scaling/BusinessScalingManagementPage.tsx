@@ -32,6 +32,7 @@ import { useDialog } from '../../context/DialogContext';
 export const BusinessScalingManagementPage: React.FC = () => {
   const [scalingRequests, setScalingRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,6 +78,7 @@ export const BusinessScalingManagementPage: React.FC = () => {
 
   const loadScalingRequests = async (keepSelectedId?: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
@@ -92,6 +94,7 @@ export const BusinessScalingManagementPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to load scaling requests:', err);
+      setLoadError(err.message || 'Failed to connect to backend server');
     } finally {
       setLoading(false);
     }
@@ -468,6 +471,20 @@ export const BusinessScalingManagementPage: React.FC = () => {
       {/* 4. Requests List or Grid View */}
       {loading ? (
         <SkeletonCards count={6} />
+      ) : loadError ? (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-10 text-center space-y-3">
+          <TrendingUp className="w-10 h-10 text-rose-500 mx-auto opacity-70" />
+          <h3 className="text-base font-bold text-rose-400">Unable to Load Scaling Requests</h3>
+          <p className="text-xs text-rose-300/80 max-w-md mx-auto">{loadError}</p>
+          <div className="pt-2">
+            <button
+              onClick={() => loadScalingRequests()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
       ) : filteredRequests.length === 0 ? (
         <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-12 text-center space-y-3">
           <TrendingUp className="w-12 h-12 text-[var(--text-secondary)] mx-auto opacity-40" />
