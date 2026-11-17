@@ -631,3 +631,4 @@ export const InvestmentRequestsPage: React.FC = () => {
     </div>
   );
 };
+

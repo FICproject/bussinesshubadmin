@@ -1076,15 +1076,27 @@ export const KycVerificationPage: React.FC = () => {
                                       Request Reupload
                                     </button>
                                   )}
-                                  {reqStatus === 'PENDING' && (
+                                  {reqStatus !== 'APPROVED' && (
                                     <button
                                       type="button"
                                       disabled={isBusy}
-                                      onClick={() => handleReviewAdditionalRequest(reqItem.requestId, 'CANCELLED', 'No longer needed by compliance team')}
-                                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                                      onClick={() => {
+                                        if (window.confirm(`Are you sure you want to cancel and delete the additional document request "${reqItem.documentName}"?`)) {
+                                          handleReviewAdditionalRequest(reqItem.requestId, 'CANCELLED', 'No longer needed by compliance team');
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-50"
                                     >
                                       Cancel Request
                                     </button>
+                                  )}
+                                </div>
+                              )}
+                              {reqStatus === 'CANCELLED' && (
+                                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                                  <span>Request Cancelled / Deleted{reqItem.cancellationReason ? `: ${reqItem.cancellationReason}` : ''}</span>
+                                  {reqItem.cancelledByName && (
+                                    <span className="text-[10px] text-slate-400">By {reqItem.cancelledByName}</span>
                                   )}
                                 </div>
                               )}
