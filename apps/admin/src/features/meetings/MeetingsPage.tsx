@@ -19,6 +19,95 @@ import { rowVariants } from '../../utils/animations';
 import { SkeletonTable } from '../../components/Skeleton';
 import { useDialog } from '../../context/DialogContext';
 
+export interface IUnifiedParticipant {
+  id?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  isAdmin?: boolean;
+  badge?: string;
+}
+
+export const getMeetingParticipants = (meeting: any): IUnifiedParticipant[] => {
+  if (!meeting) return [];
+  const participants: IUnifiedParticipant[] = [];
+  const seenKeys = new Set<string>();
+
+  // 1. Participant Members
+  if (Array.isArray(meeting.participantMemberIds)) {
+    for (const p of meeting.participantMemberIds) {
+      if (!p) continue;
+      const email = typeof p === 'object' ? (p.email || '').toLowerCase().trim() : '';
+      const name = typeof p === 'object' ? (p.name || '').toLowerCase().trim() : '';
+      const key = email || name;
+      if (key) seenKeys.add(key);
+
+      participants.push({
+        id: typeof p === 'object' ? (p._id || p.id) : String(p),
+        name: typeof p === 'object' && p.name ? p.name : 'Member',
+        email: typeof p === 'object' ? p.email : undefined,
+        phone: typeof p === 'object' ? p.phone : undefined,
+        role: typeof p === 'object' ? (p.primaryCategory || p.primaryCategoryName || 'Client / Member') : 'Client / Member',
+        isAdmin: false
+      });
+    }
+  }
+
+  // 2. External Participants (deduplicate against participantMemberIds by email and name)
+  if (Array.isArray(meeting.externalParticipants)) {
+    for (const e of meeting.externalParticipants) {
+      if (!e) continue;
+      const email = (e.email || '').toLowerCase().trim();
+      const name = (e.name || '').toLowerCase().trim();
+
+      const matchedIndex = participants.findIndex((item) => {
+        const itemEmail = (item.email || '').toLowerCase().trim();
+        const itemName = (item.name || '').toLowerCase().trim();
+        return (email && itemEmail && email === itemEmail) || (name && itemName && name === itemName);
+      });
+
+      if (matchedIndex !== -1) {
+        // Already present! Merge role/company if available so it doesn't duplicate
+        if (e.roleOrCompany) {
+          participants[matchedIndex].role = e.roleOrCompany;
+        }
+        if (!participants[matchedIndex].phone && e.phone) {
+          participants[matchedIndex].phone = e.phone;
+        }
+        continue;
+      }
+
+      if (email) seenKeys.add(email);
+      else if (name) seenKeys.add(name);
+
+      participants.push({
+        name: e.name || 'Participant',
+        email: e.email,
+        phone: e.phone,
+        role: e.roleOrCompany || 'External Member',
+        isAdmin: false
+      });
+    }
+  }
+
+  // 3. Host Admin (Always include Host Admin as participant so 2 members = user + admin)
+  const host = meeting.hostAdminId;
+  const adminName = typeof host === 'object' && host?.name ? host.name : (typeof host === 'string' && host ? host : 'FIC Super Administrator');
+  const adminEmail = typeof host === 'object' && host?.email ? host.email : 'admin@fic.com';
+  const adminRole = typeof host === 'object' && host?.role ? host.role : 'SUPER_ADMIN';
+
+  participants.push({
+    name: adminName,
+    email: adminEmail,
+    role: 'FIC Coordinator / Host Admin',
+    badge: adminRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'ADMIN',
+    isAdmin: true
+  });
+
+  return participants;
+};
+
 export const MeetingsPage: React.FC = () => {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -359,19 +448,18 @@ export const MeetingsPage: React.FC = () => {
 
                       <td className="px-6 py-4">
                         {(() => {
-                          const totalParticipants =
-                            (m.participantMemberIds?.length || 0) + (m.externalParticipants?.length || 0);
-                          if (totalParticipants === 0) {
+                          const participants = getMeetingParticipants(m);
+                          if (participants.length === 0) {
                             return <span className="text-xs text-slate-400">No participants</span>;
                           }
                           return (
                             <button
                               type="button"
                               onClick={() => setViewMembersMeeting(m)}
-                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 text-xs font-semibold transition-all active:scale-95 shadow-2xs"
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 text-xs font-semibold transition-all active:scale-95 shadow-2xs cursor-pointer"
                             >
                               <Users className="w-3.5 h-3.5" />
-                              <span>View Members ({totalParticipants})</span>
+                              <span>View Members ({participants.length})</span>
                             </button>
                           );
                         })()}
@@ -920,53 +1008,48 @@ export const MeetingsPage: React.FC = () => {
               </div>
 
               <div className="p-5 overflow-y-auto space-y-2.5 flex-1">
-                {viewMembersMeeting.participantMemberIds?.map((p: any, idx: number) => (
+                {getMeetingParticipants(viewMembersMeeting).map((p, idx) => (
                   <div
-                    key={p._id || idx}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80"
+                    key={p.id || idx}
+                    className={`flex items-center justify-between p-3 rounded-xl border ${
+                      p.isAdmin
+                        ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200/80 dark:border-indigo-800/50'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80'
+                    }`}
                   >
                     <div className="flex items-center space-x-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold flex items-center justify-center shrink-0">
+                      <span
+                        className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+                          p.isAdmin
+                            ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
+                            : 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300'
+                        }`}
+                      >
                         {idx + 1}
                       </span>
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                          {p.name || 'Member'}
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                          <span>{p.name || (p.isAdmin ? 'FIC Admin' : 'Member')}</span>
+                          {p.isAdmin && (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                              {p.badge || 'ADMIN'}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                           {p.email} {p.phone ? `• ${p.phone}` : ''}
                         </div>
                       </div>
                     </div>
-                    {p.primaryCategory && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0 ml-2">
-                        {p.primaryCategory}
-                      </span>
-                    )}
-                  </div>
-                ))}
-
-                {viewMembersMeeting.externalParticipants?.map((e: any, idx: number) => (
-                  <div
-                    key={`ext-${idx}`}
-                    className="flex items-center justify-between p-3 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/50"
-                  >
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center justify-center shrink-0">
-                        {(viewMembersMeeting.participantMemberIds?.length || 0) + idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                          {e.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                          {e.email} {e.phone ? `• ${e.phone}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                    {e.roleOrCompany && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 shrink-0 ml-2">
-                        {e.roleOrCompany}
+                    {p.role && (
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 ml-2 border ${
+                          p.isAdmin
+                            ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60'
+                            : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60'
+                        }`}
+                      >
+                        {p.role}
                       </span>
                     )}
                   </div>
