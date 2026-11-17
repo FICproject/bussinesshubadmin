@@ -41,8 +41,12 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const effectiveDocId =
+    documentId ||
+    (fileUrl ? fileUrl.match(/\/documents\/([A-Za-z0-9_-]+)/)?.[1] : undefined);
+
   useEffect(() => {
-    if (!documentId) return;
+    if (!effectiveDocId) return;
 
     let active = true;
     let createdUrl: string | null = null;
@@ -50,7 +54,7 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
     setError(null);
     setTextContent(null);
 
-    fetchAdminDocumentBlob(documentId, {
+    fetchAdminDocumentBlob(effectiveDocId, {
       variant: isImage ? variant : 'original',
       action: 'view'
     })
@@ -78,13 +82,13 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
       if (createdUrl) URL.revokeObjectURL(createdUrl);
       setBlobUrl(null);
     };
-  }, [documentId, variant, isImage, isText]);
+  }, [effectiveDocId, variant, isImage, isText]);
 
   const handleDownloadOriginal = async () => {
-    if (!documentId) return;
+    if (!effectiveDocId) return;
     setDownloading(true);
     try {
-      await downloadAdminOriginalDocument(documentId, fileName);
+      await downloadAdminOriginalDocument(effectiveDocId, fileName);
     } catch (err: any) {
       setError(err?.message || 'Download failed.');
     } finally {
@@ -92,7 +96,7 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
     }
   };
 
-  if (!documentId) {
+  if (!effectiveDocId) {
     // Legacy non-DocumentAsset fallback
     if (isImage && fileUrl) {
       return (
@@ -108,7 +112,7 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
         <iframe
           src={fileUrl}
           title={title || 'KYC Document'}
-          className="w-full h-[320px] rounded-lg border border-slate-200 dark:border-slate-800"
+          className="w-full h-[520px] md:h-[620px] rounded-lg border border-slate-200 dark:border-slate-800"
         />
       );
     }
@@ -205,7 +209,7 @@ export const AuthenticatedDocumentPreview: React.FC<AuthenticatedDocumentPreview
           <iframe
             src={blobUrl}
             title={title || fileName || 'PDF Document'}
-            className="w-full h-[320px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white"
+            className="w-full h-[520px] md:h-[620px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white shadow-inner"
           />
         ) : isText && textContent !== null ? (
           <pre className="w-full max-h-[300px] overflow-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-mono">
