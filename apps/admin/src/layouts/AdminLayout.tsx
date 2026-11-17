@@ -26,6 +26,8 @@ import {
   PanelLeftOpen,
   Lightbulb,
   TrendingUp,
+  DollarSign,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -77,10 +79,13 @@ export const AdminLayout: React.FC = () => {
     { name: 'Business Idea Requests', path: '/business-ideas', icon: Lightbulb, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Scaling Requests', path: '/scaling', icon: TrendingUp, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
-    // 4. Commercials & Capital Desk
+    // 4. Commercials & Capital Desk (5 Dedicated Financial Lifecycle Modules)
     { name: 'Payments & Fees', path: '/payments', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Funding Requests', path: '/funding-requests', icon: Coins, show: hasRole('SUPER_ADMIN', 'ADMIN') },
-    { name: 'Investment Requests', path: '/investment-requests', icon: CreditCard, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Investment Requests', path: '/investment-requests', icon: TrendingUp, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Fund Release', path: '/fund-release', icon: DollarSign, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Returns & Maturity', path: '/returns-maturity', icon: CalendarClock, show: hasRole('SUPER_ADMIN', 'ADMIN') },
+    { name: 'Maturity Release', path: '/maturity-release', icon: ShieldCheck, show: hasRole('SUPER_ADMIN', 'ADMIN') },
     { name: 'Referral Bonus', path: '/referrals', icon: Gift, show: hasRole('SUPER_ADMIN', 'ADMIN') },
 
     // 5. Operations & Engagement

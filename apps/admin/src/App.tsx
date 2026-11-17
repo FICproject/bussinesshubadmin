@@ -16,7 +16,11 @@ import { SupportTicketsPage } from './features/support/SupportTicketsPage';
 import { StaffManagementPage } from './features/staff/StaffManagementPage';
 import { AuditLogsPage } from './features/audit-logs/AuditLogsPage';
 import { ReferralBonusPage } from './features/referrals/ReferralBonusPage';
-import { FundingDeskPage } from './features/funding/FundingDeskPage';
+import { FundingRequestsPage } from './features/funding/FundingRequestsPage';
+import { InvestmentRequestsPage } from './features/funding/InvestmentRequestsPage';
+import { FundReleasePage } from './features/funding/FundReleasePage';
+import { ReturnsMaturityPage } from './features/funding/ReturnsMaturityPage';
+import { MaturityReleasePage } from './features/funding/MaturityReleasePage';
 import { BusinessIdeasManagementPage } from './features/ideas/BusinessIdeasManagementPage';
 import { BusinessScalingManagementPage } from './features/scaling/BusinessScalingManagementPage';
 
@@ -60,9 +64,15 @@ export const App: React.FC = () => {
         <Route path="meetings" element={<MeetingsPage />} />
         <Route path="services" element={<ServicesModerationPage />} />
         <Route path="referrals" element={<ReferralBonusPage />} />
-        <Route path="funding" element={<FundingDeskPage defaultTab="FUNDING_REQUESTS" />} />
-        <Route path="funding-requests" element={<FundingDeskPage defaultTab="FUNDING_REQUESTS" />} />
-        <Route path="investment-requests" element={<FundingDeskPage defaultTab="INVESTMENT_REQUESTS" />} />
+        
+        {/* Dedicated 5 Independent Financial Modules */}
+        <Route path="funding" element={<FundingRequestsPage />} />
+        <Route path="funding-requests" element={<FundingRequestsPage />} />
+        <Route path="investment-requests" element={<InvestmentRequestsPage />} />
+        <Route path="fund-release" element={<FundReleasePage />} />
+        <Route path="returns-maturity" element={<ReturnsMaturityPage />} />
+        <Route path="maturity-release" element={<MaturityReleasePage />} />
+
         <Route path="business-ideas" element={<BusinessIdeasManagementPage />} />
         <Route path="scaling" element={<BusinessScalingManagementPage />} />
         <Route path="scaling-requests" element={<BusinessScalingManagementPage />} />
@@ -78,4 +88,3 @@ export const App: React.FC = () => {
     </Routes>
   );
 };
-

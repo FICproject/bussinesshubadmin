@@ -1,5 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, ShieldCheck, Users, Briefcase, GitPullRequest, ArrowUpRight, Activity } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  Briefcase,
+  GitPullRequest,
+  ArrowUpRight,
+  Activity,
+  Coins,
+  TrendingUp,
+  DollarSign,
+  CalendarClock,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Landmark,
+  BadgeDollarSign,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../services/api';
 import { containerVariants, itemVariants } from '../../utils/animations';
@@ -14,6 +31,7 @@ import { Skeleton, SkeletonCards } from '../../components/Skeleton';
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [financials, setFinancials] = useState<any>(null);
+  const [lifecycleKpis, setLifecycleKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -41,12 +59,14 @@ export const DashboardPage: React.FC = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [statsData, finData] = await Promise.all([
+      const [statsData, finData, kpiData] = await Promise.all([
         apiFetch('/api/admin/dashboard/stats'),
         apiFetch('/api/admin/dashboard/financial-stats'),
+        apiFetch('/api/admin/funding/lifecycle-kpis').catch(() => null),
       ]);
       setStats(statsData);
       setFinancials(finData);
+      setLifecycleKpis(kpiData);
     } catch (err: any) {
       console.error('Failed to load dashboard metrics', err);
       setLoadError(err.message || 'Failed to connect to backend server. Please verify backend availability.');
@@ -134,6 +154,98 @@ export const DashboardPage: React.FC = () => {
       iconBox: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-300/60 dark:border-emerald-700/50',
       description: 'Active vs Registered Total',
       path: '/members?status=ALL',
+    },
+  ];
+
+  // 11 Financial Lifecycle Metrics
+  const lifecycleMetricCards = [
+    {
+      title: 'Total Funding Requested',
+      amount: lifecycleKpis?.totalFundingRequested?.amount ?? 0,
+      count: lifecycleKpis?.totalFundingRequested?.count ?? 0,
+      icon: Coins,
+      path: '/funding-requests?status=ALL',
+      badgeColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
+    },
+    {
+      title: 'Total Funding Approved',
+      amount: lifecycleKpis?.totalFundingApproved?.amount ?? 0,
+      count: lifecycleKpis?.totalFundingApproved?.count ?? 0,
+      icon: CheckCircle2,
+      path: '/funding-requests?status=APPROVED',
+      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+    },
+    {
+      title: 'Total Investment Proposals',
+      amount: lifecycleKpis?.totalInvestmentProposals?.amount ?? 0,
+      count: lifecycleKpis?.totalInvestmentProposals?.count ?? 0,
+      icon: TrendingUp,
+      path: '/investment-requests?status=ALL',
+      badgeColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800',
+    },
+    {
+      title: 'Total Investment Approved',
+      amount: lifecycleKpis?.totalInvestmentApproved?.amount ?? 0,
+      count: lifecycleKpis?.totalInvestmentApproved?.count ?? 0,
+      icon: CheckCircle2,
+      path: '/investment-requests?status=APPROVED',
+      badgeColor: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+    },
+    {
+      title: 'Verified Investor Payments',
+      amount: lifecycleKpis?.totalVerifiedPayments?.amount ?? 0,
+      count: lifecycleKpis?.totalVerifiedPayments?.count ?? 0,
+      icon: DollarSign,
+      path: '/fund-release?status=ALL',
+      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+    },
+    {
+      title: 'Total Funds Released',
+      amount: lifecycleKpis?.totalFundsReleased?.amount ?? 0,
+      count: lifecycleKpis?.totalFundsReleased?.count ?? 0,
+      icon: BadgeDollarSign,
+      path: '/fund-release?status=RELEASED',
+      badgeColor: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',
+    },
+    {
+      title: 'Active Funded Projects',
+      amount: lifecycleKpis?.totalActiveProjects?.amount ?? 0,
+      count: lifecycleKpis?.totalActiveProjects?.count ?? 0,
+      icon: Landmark,
+      path: '/returns-maturity?status=ALL',
+      badgeColor: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800',
+    },
+    {
+      title: 'Total Returns Received',
+      amount: lifecycleKpis?.totalReturnsReceived?.amount ?? 0,
+      count: lifecycleKpis?.totalReturnsReceived?.count ?? 0,
+      icon: DollarSign,
+      path: '/returns-maturity?status=FULLY_RECEIVED',
+      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
+    },
+    {
+      title: 'Outstanding Returns',
+      amount: lifecycleKpis?.totalOutstandingReturns?.amount ?? 0,
+      count: lifecycleKpis?.totalOutstandingReturns?.count ?? 0,
+      icon: Clock,
+      path: '/returns-maturity?status=DUE',
+      badgeColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+    },
+    {
+      title: 'Total Maturity Due',
+      amount: lifecycleKpis?.totalMaturityDue?.amount ?? 0,
+      count: lifecycleKpis?.totalMaturityDue?.count ?? 0,
+      icon: AlertCircle,
+      path: '/maturity-release?status=REPAYMENT_AWAITING',
+      badgeColor: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',
+    },
+    {
+      title: 'Total Maturity Released',
+      amount: lifecycleKpis?.totalMaturityReleased?.amount ?? 0,
+      count: lifecycleKpis?.totalMaturityReleased?.count ?? 0,
+      icon: ShieldCheck,
+      path: '/maturity-release?status=COMPLETED',
+      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
     },
   ];
 
@@ -226,6 +338,55 @@ export const DashboardPage: React.FC = () => {
           );
         })}
       </motion.div>
+
+      {/* Funding & Investment Lifecycle KPIs (11 Core Ecosystem Metrics) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+              <Coins className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
+              Funding & Investment Lifecycle Metrics
+            </h3>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">Real-time Financial Ledger</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+          {lifecycleMetricCards.map((m, idx) => {
+            const Icon = m.icon;
+            return (
+              <div
+                key={idx}
+                onClick={() => navigate(m.path)}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`p-1.5 rounded-lg border text-xs ${m.badgeColor}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {m.count} {m.count === 1 ? 'deal' : 'deals'}
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-tight truncate">
+                    {m.title}
+                  </p>
+                  <p className="text-base font-extrabold text-slate-900 dark:text-slate-100 font-mono mt-1">
+                    ₹{Number(m.amount).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-indigo-500 group-hover:text-indigo-600 dark:text-indigo-400 font-medium">
+                  <span>View page</span>
+                  <ArrowUpRight className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* 3. System Health & Infrastructure Card + Activity Stream Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
