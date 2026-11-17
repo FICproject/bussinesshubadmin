@@ -65,11 +65,6 @@ export const BusinessIdeasManagementPage: React.FC = () => {
   const [updateStatus, setUpdateStatus] = useState<'MATCHED' | 'COORDINATING_CALL'>('MATCHED');
   const [isSendingUpdate, setIsSendingUpdate] = useState(false);
 
-  // Contributor Selection Modal / State
-  const [selectingInterest, setSelectingInterest] = useState<any | null>(null);
-  const [selectionReason, setSelectionReason] = useState('');
-  const [selectionPrivateNotes, setSelectionPrivateNotes] = useState('');
-  const [isSubmittingSelection, setIsSubmittingSelection] = useState(false);
 
   // Submitter Consultation Meeting Modal State
   const getTomorrowStr = () => {
@@ -422,71 +417,6 @@ export const BusinessIdeasManagementPage: React.FC = () => {
     }
   };
 
-  // Manage Interested Member Status (Shortlist, Select, Not Selected)
-  const handleUpdateInterestStatus = async (
-    interest: any,
-    targetStatus: 'SHORTLISTED' | 'NOT_SELECTED'
-  ) => {
-    if (!selectedIdea) return;
-    try {
-      await apiFetch(
-        `/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/interests/${interest._id}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            reviewStatus: targetStatus,
-            status: targetStatus
-          })
-        }
-      );
-      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
-    } catch (err: any) {
-      showAlert(err.message || 'Failed to update interested member status', { severity: 'danger' });
-    }
-  };
-
-  // Submit Select Contributor with Reason
-  const handleConfirmSelectContributor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedIdea || !selectingInterest) return;
-
-    setIsSubmittingSelection(true);
-    try {
-      await apiFetch(
-        `/api/admin/business-ideas/${selectedIdea._id || selectedIdea.ideaRequestId}/interests/${selectingInterest._id}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            reviewStatus: 'SELECTED',
-            status: 'SELECTED',
-            selectionReason: selectionReason.trim(),
-            adminNotes: selectionPrivateNotes.trim(),
-            privateNotes: selectionPrivateNotes.trim()
-          })
-        }
-      );
-
-      await showAlert(
-        `Selected ${selectingInterest.interestedMemberName} as collaborator! Next, send an official update to the idea submitter.`,
-        { severity: 'success' }
-      );
-
-      // Pre-fill submitter update message with recommendation
-      setUpdateMessage(
-        `FIC has reviewed collaboration offers for your idea "${selectedIdea.title}" and selected ${selectingInterest.interestedMemberName} (${selectingInterest.interestedCategory || 'Partner Member'}) offering ${selectingInterest.contributionType}. Our coordinator will arrange an exploratory call.`
-      );
-      setUpdateStatus('MATCHED');
-
-      setSelectingInterest(null);
-      setSelectionReason('');
-      setSelectionPrivateNotes('');
-      loadIdeas(selectedIdea._id || selectedIdea.ideaRequestId);
-    } catch (err: any) {
-      showAlert(err.message || 'Failed to select contributor', { severity: 'danger' });
-    } finally {
-      setIsSubmittingSelection(false);
-    }
-  };
 
   // Helper for Status Badge Styling
   const getStatusBadge = (status: string, published: boolean) => {
@@ -1393,36 +1323,10 @@ export const BusinessIdeasManagementPage: React.FC = () => {
                                 setSchedulingInterest(interest);
                                 setInterestMeetingNotes(`Introductory collaboration meeting between ${selectedIdea.submitterName} and ${interest.interestedMemberName} regarding idea "${selectedIdea.title}"`);
                               }}
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition-all cursor-pointer inline-flex items-center gap-1"
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
                             >
                               <Calendar className="w-3.5 h-3.5" />
-                              {interest.meetingDetails?.date ? 'Reschedule Meeting' : 'Arrange Meeting'}
-                            </button>
-
-                            <button
-                              onClick={() => handleUpdateInterestStatus(interest, 'SHORTLISTED')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition-all cursor-pointer"
-                            >
-                              Shortlist
-                            </button>
-
-                            <button
-                              onClick={() => handleUpdateInterestStatus(interest, 'NOT_SELECTED')}
-                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all cursor-pointer"
-                            >
-                              Not Selected
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setSelectingInterest(interest);
-                                setSelectionReason('');
-                                setSelectionPrivateNotes('');
-                              }}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer inline-flex items-center gap-1"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              Select Contributor
+                              {interest.meetingDetails?.date ? 'Reschedule Meeting' : 'Schedule Meeting'}
                             </button>
                           </div>
                         </div>
@@ -1562,87 +1466,7 @@ export const BusinessIdeasManagementPage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 6. Select Contributor Modal */}
-      <AnimatePresence>
-        {selectingInterest && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-[var(--text-primary)] flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  Select Collaboration Partner
-                </h3>
-                <button
-                  onClick={() => setSelectingInterest(null)}
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              <div className="p-3 rounded-xl bg-[var(--bg-secondary)] text-xs space-y-1">
-                <div className="font-bold text-[var(--text-primary)]">
-                  {selectingInterest.interestedMemberName}
-                </div>
-                <div className="text-[var(--text-secondary)]">
-                  {selectingInterest.interestedCategory || 'Member'} • {selectingInterest.contributionType}
-                </div>
-              </div>
-
-              <form onSubmit={handleConfirmSelectContributor} className="space-y-3 text-xs">
-                <div className="space-y-1">
-                  <label className="font-semibold text-[var(--text-secondary)] block">
-                    Selection Reason (will be shown in internal audit & update):
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={selectionReason}
-                    onChange={(e) => setSelectionReason(e.target.value)}
-                    placeholder="e.g., Strongly aligned technical background, active capacity, and proven market connections..."
-                    required
-                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-[var(--text-secondary)] block">
-                    Private Coordination Notes (Admin only):
-                  </label>
-                  <input
-                    type="text"
-                    value={selectionPrivateNotes}
-                    onChange={(e) => setSelectionPrivateNotes(e.target.value)}
-                    placeholder="e.g., Contact person preferred on mornings..."
-                    className="w-full text-xs p-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectingInterest(null)}
-                    className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingSelection || !selectionReason.trim()}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Confirm Selection
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
 
         {/* Modal: Schedule Consultation Meeting with Idea Submitter */}
         {showScheduleRequesterModal && selectedIdea && (
@@ -1984,7 +1808,6 @@ export const BusinessIdeasManagementPage: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
     </div>
   );
 };

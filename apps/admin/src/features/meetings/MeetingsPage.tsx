@@ -38,54 +38,69 @@ export const getMeetingParticipants = (meeting: any): IUnifiedParticipant[] => {
   if (Array.isArray(meeting.participantMemberIds)) {
     for (const p of meeting.participantMemberIds) {
       if (!p) continue;
+      const id = typeof p === 'object' ? String(p._id || p.id || '') : String(p);
       const email = typeof p === 'object' ? (p.email || '').toLowerCase().trim() : '';
-      const name = typeof p === 'object' ? (p.name || '').toLowerCase().trim() : '';
-      const key = email || name;
+      const name = typeof p === 'object' ? (p.name || p.fullName || '').trim() : '';
+      const phone = typeof p === 'object' ? (p.phone || p.phoneNumber || '').trim() : '';
+      const key = email || phone || id || name.toLowerCase();
+      if (key && seenKeys.has(key)) continue;
       if (key) seenKeys.add(key);
+      if (email) seenKeys.add(email);
+      if (phone) seenKeys.add(phone);
 
       participants.push({
-        id: typeof p === 'object' ? (p._id || p.id) : String(p),
-        name: typeof p === 'object' && p.name ? p.name : 'Member',
-        email: typeof p === 'object' ? p.email : undefined,
-        phone: typeof p === 'object' ? p.phone : undefined,
+        id,
+        name: name || 'Member',
+        email: email || undefined,
+        phone: phone || undefined,
         role: typeof p === 'object' ? (p.primaryCategory || p.primaryCategoryName || 'Client / Member') : 'Client / Member',
         isAdmin: false
       });
     }
   }
 
-  // 2. External Participants (deduplicate against participantMemberIds by email and name)
+  // 2. External Participants (deduplicate against participantMemberIds by email, phone, and name)
   if (Array.isArray(meeting.externalParticipants)) {
     for (const e of meeting.externalParticipants) {
       if (!e) continue;
       const email = (e.email || '').toLowerCase().trim();
-      const name = (e.name || '').toLowerCase().trim();
+      const name = (e.name || e.fullName || '').trim();
+      const phone = (e.phone || e.phoneNumber || '').trim();
 
       const matchedIndex = participants.findIndex((item) => {
         const itemEmail = (item.email || '').toLowerCase().trim();
         const itemName = (item.name || '').toLowerCase().trim();
-        return (email && itemEmail && email === itemEmail) || (name && itemName && name === itemName);
+        const itemPhone = (item.phone || '').trim();
+        return (
+          (email && itemEmail && email === itemEmail) ||
+          (phone && itemPhone && phone === itemPhone) ||
+          (name && itemName && name.toLowerCase() === itemName && itemName !== 'member')
+        );
       });
 
       if (matchedIndex !== -1) {
         // Already present! Merge role/company if available so it doesn't duplicate
-        if (e.roleOrCompany) {
-          participants[matchedIndex].role = e.roleOrCompany;
+        if (e.roleOrCompany && !participants[matchedIndex].badge) {
+          participants[matchedIndex].badge = e.roleOrCompany;
         }
-        if (!participants[matchedIndex].phone && e.phone) {
-          participants[matchedIndex].phone = e.phone;
+        if (!participants[matchedIndex].phone && phone) {
+          participants[matchedIndex].phone = phone;
+        }
+        if (!participants[matchedIndex].email && email) {
+          participants[matchedIndex].email = email;
         }
         continue;
       }
 
       if (email) seenKeys.add(email);
-      else if (name) seenKeys.add(name);
+      else if (name) seenKeys.add(name.toLowerCase());
 
       participants.push({
-        name: e.name || 'Participant',
-        email: e.email,
-        phone: e.phone,
+        name: name || 'Participant',
+        email: email || undefined,
+        phone: phone || undefined,
         role: e.roleOrCompany || 'External Member',
+        badge: e.roleOrCompany,
         isAdmin: false
       });
     }
@@ -100,8 +115,8 @@ export const getMeetingParticipants = (meeting: any): IUnifiedParticipant[] => {
   participants.push({
     name: adminName,
     email: adminEmail,
-    role: 'FIC Coordinator / Host Admin',
-    badge: adminRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'ADMIN',
+    role: 'Host Admin / Coordinator',
+    badge: adminRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'HOST ADMIN',
     isAdmin: true
   });
 
